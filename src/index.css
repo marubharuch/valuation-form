@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* =====================
+   PRINT STYLES (A4)
+===================== */
+@media print {
+
+  /* Page setup */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide everything */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only A4 page */
+  .a4-page,
+  .a4-page * {
+    visibility: visible;
+  }
+
+  /* A4 page exact size */
+  .a4-page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm;
+    height: 297mm;
+
+    /* Remove preview effects */
+    transform: none !important;
+    scale: 1 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+
+  /* Hide UI explicitly (extra safety) */
+  .print-hidden {
+    display: none !important;
+  }
+}
