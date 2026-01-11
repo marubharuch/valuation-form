@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [filter, setFilter] = useState("pendingReport"); // default
+  const [filter, setFilter] = useState("pendingReport");
   const [search, setSearch] = useState("");
 
   /* ---------------- FETCH CASES ---------------- */
@@ -53,7 +53,6 @@ export default function Dashboard() {
 
     if (!matchesSearch) return false;
 
-    // 🔹 Filters
     if (filter === "pendingReport") {
       return !c.reportSubmittedDate;
     }
@@ -81,13 +80,13 @@ export default function Dashboard() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <h1 className="text-xl font-bold">Cases Dashboard</h1>
-
-        <button
+        firebase-sgsbharuch,git-marubharuch
+       {/* <button
           onClick={() => navigate("/case/new")}
           className="bg-blue-600 text-white px-4 py-2 rounded"
         >
           + New Case
-        </button>
+        </button>*/}
       </div>
 
       {/* SEARCH */}
@@ -101,49 +100,24 @@ export default function Dashboard() {
 
       {/* FILTER BUTTONS */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => setFilter("pendingReport")}
-          className={`px-3 py-1 rounded text-sm ${
-            filter === "pendingReport"
-              ? "bg-blue-600 text-white"
-              : "bg-white border"
-          }`}
-        >
-          Pending Report
-        </button>
-
-        <button
-          onClick={() => setFilter("paymentPending")}
-          className={`px-3 py-1 rounded text-sm ${
-            filter === "paymentPending"
-              ? "bg-blue-600 text-white"
-              : "bg-white border"
-          }`}
-        >
-          Payment Pending
-        </button>
-
-        <button
-          onClick={() => setFilter("thisMonth")}
-          className={`px-3 py-1 rounded text-sm ${
-            filter === "thisMonth"
-              ? "bg-blue-600 text-white"
-              : "bg-white border"
-          }`}
-        >
-          This Month
-        </button>
-
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-3 py-1 rounded text-sm ${
-            filter === "all"
-              ? "bg-blue-600 text-white"
-              : "bg-white border"
-          }`}
-        >
-          All
-        </button>
+        {[
+          ["pendingReport", "Pending Report"],
+          ["paymentPending", "Payment Pending"],
+          ["thisMonth", "This Month"],
+          ["all", "All"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`px-3 py-1 rounded text-sm ${
+              filter === key
+                ? "bg-blue-600 text-white"
+                : "bg-white border"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* CONTENT */}
@@ -154,67 +128,145 @@ export default function Dashboard() {
           No matching cases
         </div>
       ) : (
-        <div className="bg-white rounded shadow overflow-hidden">
-          {/* TABLE HEADER (Desktop) */}
-          <div className="hidden md:grid grid-cols-7 bg-gray-50 text-sm font-semibold px-4 py-2">
-            <div>SR No</div>
-            <div>Name</div>
-            <div>Branch</div>
-            <div>Contact</div>
-            <div>Payment</div>
-            <div>Received</div>
-            <div>Action</div>
-          </div>
+        <>
+          {/* ================= MOBILE CARDS ================= */}
+          {/* ================= MOBILE COMPACT LIST ================= */}
+<div className="md:hidden divide-y bg-white rounded shadow">
+  {filteredCases.map((c) => (
+    <div
+      key={c.id}
+      className="px-3 py-2 flex flex-col gap-1"
+    > 
+      {/* ROW 1 */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2 min-w-0">
+           <a href={`tel:${c.contactNo}`} title="Call">
+                📞
+              </a>
+          <span className="font-mono font-semibold text-xs">
+            {c.caseNo || "—"}
+          </span>
 
-          {/* ROWS */}
-          {filteredCases.map((c) => (
-            <div
-              key={c.id}
-              className="grid grid-cols-1 md:grid-cols-7 gap-2 px-4 py-3 border-t items-center text-sm"
-            >
-              {/* SR NO */}
-              <div className="font-mono font-semibold">
-                {c.caseNo || "—"}
-              </div>
+          <span className="text-sm font-medium truncate">
+            {c.name || "—"}
+          </span>
+        </div>
 
-              {/* NAME */}
-              <div>{c.name || "—"}</div>
+        <button
+          onClick={() => navigate(`/case/${c.id}`)}
+          className="text-blue-600 text-xs"
+        >
+          Open →
+        </button>
+      </div>
 
-              {/* BRANCH + CITY */}
-              <div>
-                {c.branch}
-                <div className="text-xs text-gray-500">
-                  {c.city}
+      {/* ROW 2 */}
+      <div className="flex justify-between items-center text-xs text-gray-600">
+        <div className="truncate">
+          {c.branch} • {c.city}
+        </div>
+
+        <div className="flex items-center gap-3">
+          {c.contactNo && (
+            <>
+             
+              <a
+                href={`https://wa.me/91${c.contactNo}`}
+                target="_blank"
+                rel="noreferrer"
+                title="WhatsApp"
+              >
+                💬
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ROW 3 */}
+      <div className="flex justify-between items-center text-xs">
+        <span>
+          ₹{c.paymentAmount || "—"}
+        </span>
+
+        <span className="text-gray-500">
+          {c.paymentReceivedDate || ""}
+        </span>
+      </div>
+    </div>
+  ))}
+</div>
+
+
+          {/* ================= DESKTOP TABLE ================= */}
+          <div className="hidden md:block bg-white rounded shadow overflow-hidden">
+            <div className="grid grid-cols-7 bg-gray-50 text-sm font-semibold px-4 py-2">
+              <div>SR No</div>
+              <div>Name</div>
+              <div>Branch</div>
+              <div>Contact</div>
+              <div>Payment</div>
+              <div>Received</div>
+              <div>Action</div>
+            </div>
+
+            {filteredCases.map((c) => (
+              <div
+                key={c.id}
+                className="grid grid-cols-7 gap-2 px-4 py-3 border-t items-center text-sm"
+              >
+                <div className="font-mono font-semibold">
+                  {c.caseNo || "—"}
+                </div>
+
+                <div>{c.name || "—"}</div>
+
+                <div>
+                  {c.branch}
+                  <div className="text-xs text-gray-500">
+                    {c.city}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  {c.contactNo ? (
+                    <>
+                      <a href={`tel:${c.contactNo}`}>📞</a>
+                      <a
+                        href={`https://wa.me/91${c.contactNo}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        💬
+                      </a>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </div>
+
+                <div>
+                  {c.paymentAmount
+                    ? `₹${c.paymentAmount}`
+                    : "—"}
+                </div>
+
+                <div>
+                  {c.paymentReceivedDate || "—"}
+                </div>
+
+                <div>
+                  <button
+                    onClick={() => navigate(`/case/${c.id}`)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Open →
+                  </button>
                 </div>
               </div>
-
-              {/* CONTACT */}
-              <div>{c.contactNo || "—"}</div>
-
-              {/* PAYMENT */}
-              <div>
-                {c.paymentAmount
-                  ? `₹${c.paymentAmount}`
-                  : "—"}
-              </div>
-
-              {/* RECEIVED DATE */}
-              <div>
-                {c.paymentReceivedDate || "—"}
-              </div>
-
-              {/* ACTION */}
-              <div>
-                <button
-                  onClick={() => navigate(`/case/${c.id}`)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Open →
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
