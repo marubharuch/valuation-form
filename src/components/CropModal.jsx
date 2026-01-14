@@ -3,19 +3,23 @@ import { useState, useCallback } from "react";
 
 export default function CropModal({ src, onSave, onClose }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(0.7); // start zoomed out
+  const [zoom, setZoom] = useState(0.7);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const onCropComplete = useCallback((_, croppedPixels) => {
     setCroppedAreaPixels(croppedPixels);
   }, []);
 
   const saveCrop = () => {
+    if (!croppedAreaPixels || saving) return;
+
+    setSaving(true);
+
     const image = new Image();
     image.src = src;
 
     image.onload = () => {
-      // A4 cell size (2 x 3 layout)
       const TARGET_W = 1200;
       const TARGET_H = 900;
 
@@ -39,16 +43,22 @@ export default function CropModal({ src, onSave, onClose }) {
         TARGET_H
       );
 
+      // pass cropped image to parent
       onSave(canvas.toDataURL("image/jpeg", 0.8));
     };
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-
       {/* Header */}
       <div className="h-14 flex items-center px-4 text-white bg-black/80">
-        <button onClick={onClose} className="text-2xl mr-4">✕</button>
+        <button
+          onClick={onClose}
+          disabled={saving}
+          className="text-2xl mr-4 disabled:opacity-50"
+        >
+          ✕
+        </button>
         <span className="text-sm">Adjust image for A4 print</span>
       </div>
 
@@ -81,21 +91,27 @@ export default function CropModal({ src, onSave, onClose }) {
           value={zoom}
           onChange={(e) => setZoom(Number(e.target.value))}
           className="w-full"
+          disabled={saving}
         />
 
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border rounded-lg py-3"
+            disabled={saving}
+            className="flex-1 border rounded-lg py-3 disabled:opacity-50"
           >
             Cancel
           </button>
 
           <button
             onClick={saveCrop}
-            className="flex-1 bg-blue-600 text-white rounded-lg py-3"
+            disabled={saving}
+            className="flex-1 bg-blue-600 text-white rounded-lg py-3 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            OK
+            {saving && (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            )}
+            {saving ? "Processing…" : "OK"}
           </button>
         </div>
       </div>

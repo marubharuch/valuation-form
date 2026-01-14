@@ -222,7 +222,7 @@ export default function Documents() {
       <CropModal
   src={cropSrc}
   mode="a4"
-  layout={layoutKey}   // 1,2,4 etc (same as before)
+  layout={caseData.documentsPerPage}   // 1,2,4 etc (same as before)
   onSave={onCropSave}
   onClose={() => setCropSrc(null)}
 />
