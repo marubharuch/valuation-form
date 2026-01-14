@@ -164,10 +164,13 @@ export default function AddProperty() {
 
       {cropSrc && (
         <CropModal
-          src={cropSrc}
-          onSave={onCropSave}
-          onClose={() => setCropSrc(null)}
-        />
+  src={cropSrc}
+  mode="a4"
+  layout={6}   // 1, 2, 4 etc
+  onSave={onCropSave}
+  onClose={() => setCropSrc(null)}
+/>
+
       )}
     </div>
   );

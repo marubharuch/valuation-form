@@ -219,14 +219,13 @@ export default function Documents() {
 
       {/* Crop modal */}
       {cropSrc && (
-        <CropModal
-          src={cropSrc}
-          onSave={onCropSave}
-          onClose={() => setCropSrc(null)}
-          aspect={layout.aspect}
-          outputWidth={layout.width}
-          outputHeight={layout.height}
-        />
+      <CropModal
+  src={cropSrc}
+  mode="a4"
+  layout={layoutKey}   // 1,2,4 etc (same as before)
+  onSave={onCropSave}
+  onClose={() => setCropSrc(null)}
+/>
       )}
     </div>
   );
