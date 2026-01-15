@@ -27,6 +27,9 @@ export default function CaseDetails() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(isNewCase);
+  const [gpsBusy, setGpsBusy] = useState(false);
+const [gpsStep, setGpsStep] = useState(0);
+
 
   /* ---------------- LOAD CASE ---------------- */
   useEffect(() => {
@@ -56,6 +59,9 @@ export default function CaseDetails() {
           documentsPerPage: 2,
           imagesPerPage: 6,
           status: "open",
+          propertyLocation: null,
+propertyLocationText: "",
+
         };
 
         setCaseData(initial);
@@ -85,6 +91,120 @@ export default function CaseDetails() {
       return updated;
     });
   }
+
+  function distanceInMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // Earth radius (m)
+  const toRad = (v) => (v * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) ** 2;
+
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+ async function captureAccurateLocation() {
+  // STEP 1: existing value confirmation
+  if (caseData.propertyLocation) {
+    const ok = window.confirm(
+      "Location already exists.\nDo you want to recapture?"
+    );
+    if (!ok) return;
+  }
+
+  if (!navigator.geolocation) {
+    alert("Location not supported");
+    return;
+  }
+
+  setGpsBusy(true);
+  setGpsStep(0);
+
+  const TOTAL = 7;
+  const readings = [];
+
+  const getOnce = () =>
+    new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          });
+        },
+        reject,
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+
+  try {
+    for (let i = 0; i < TOTAL; i++) {
+      try {
+        const r = await getOnce();
+        readings.push(r);
+        setGpsStep(i + 1);
+      } catch {}
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+
+    const best = readings.reduce((a, b) =>
+      a.accuracy < b.accuracy ? a : b
+    );
+
+    // STEP 2: distance difference check
+    if (caseData.propertyLocation) {
+      const old = caseData.propertyLocation;
+      const dist = distanceInMeters(
+        old.lat,
+        old.lng,
+        best.lat,
+        best.lng
+      );
+
+      if (dist > 150) {
+        const confirmFar = window.confirm(
+          `New location is ${Math.round(
+            dist
+          )} meters away.\nReplace existing location?`
+        );
+        if (!confirmFar) return;
+      }
+    }
+
+    updateField("propertyLocation", {
+      ...best,
+      capturedAt: Date.now(),
+    });
+
+    updateField(
+      "propertyLocationText",
+      `${best.lat.toFixed(6)}, ${best.lng.toFixed(
+        6
+      )} (±${best.accuracy.toFixed(1)}m)`
+    );
+  } finally {
+    setGpsBusy(false);
+    setGpsStep(0);
+  }
+}
+
+
+
+function openGoogleMap() {
+  if (!caseData.propertyLocation) return;
+
+  const { lat, lng } = caseData.propertyLocation;
+  window.open(
+    `https://www.google.com/maps?q=${lat},${lng}&t=k`,
+    "_blank"
+  );
+}
 
   /* ---------------- SAVE ---------------- */
   async function saveCase() {
@@ -219,6 +339,57 @@ export default function CaseDetails() {
 
       {showOptional && (
         <div className="mt-4 bg-gray-50 p-3 rounded">
+
+      <div className="col-span-2 md:col-span-3 lg:col-span-4">
+  <Label text="Property Location (GPS)" />
+
+  <div className="flex gap-2">
+    <input
+      type="text"
+      value={caseData.propertyLocationText || ""}
+      readOnly
+      placeholder="Latitude, Longitude will appear here"
+      className="border p-2 rounded w-full bg-gray-100"
+    />
+
+    <button
+  type="button"
+  onClick={captureAccurateLocation}
+  disabled={gpsBusy}
+  className={`px-4 rounded text-white flex items-center gap-2
+    ${gpsBusy ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"}
+  `}
+>
+  {gpsBusy && (
+    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  )}
+  {gpsBusy ? "Collecting…" : "📍 Get"}
+</button>
+
+
+    <button
+      type="button"
+      onClick={openGoogleMap}
+      disabled={!caseData.propertyLocation}
+      className={`px-4 rounded text-white
+        ${
+          caseData.propertyLocation
+            ? "bg-green-600"
+            : "bg-gray-400 cursor-not-allowed"
+        }`}
+    >
+      🗺 Map
+    </button>
+  </div>
+
+  {caseData.propertyLocation && (
+    <div className="text-xs text-gray-500 mt-1">
+      Accuracy: ±{caseData.propertyLocation.accuracy.toFixed(1)} m
+    </div>
+  )}
+</div>
+
+
           <div className="text-sm font-semibold mb-2">
             Optional / Billing Details
           </div>
