@@ -15,7 +15,9 @@ export default function CaseNavbar() {
       <NavLink to={`/case/${caseId}`} className={linkClass}>
         Case
       </NavLink>
-
+   <NavLink to={`/case/${caseId}/rawpics`} className={linkClass}>
+        Raw Pics
+      </NavLink>
       <NavLink to={`/case/${caseId}/documents`} className={linkClass}>
         Documents
       </NavLink>
@@ -24,9 +26,7 @@ export default function CaseNavbar() {
         Property
       </NavLink>
 
-      <NavLink to={`/case/${caseId}/preview`} className={linkClass}>
-        Preview / Print
-      </NavLink>
+   
     </div>
   );
 }
