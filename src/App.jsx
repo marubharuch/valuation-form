@@ -24,6 +24,7 @@ export default function App() {
         <Route path="/case/:caseId/documents" element={<Documents />} />
         <Route path="/case/:caseId/property" element={<AddProperty />} />
         <Route path="/case/:caseId/rawpics" element={<Rawpics />} />
+        <Route path="/case/:caseId/preview" element={<PreviewA4 />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />

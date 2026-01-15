@@ -80,7 +80,7 @@ export default function Dashboard() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <h1 className="text-xl font-bold">Cases Dashboard</h1>
-        firebase-sgsbharuch,git-marubharuch
+        firebase-sgsbharuch,git-marubharuch,cloudinary-sgsbackup1
        {/* <button
           onClick={() => navigate("/case/new")}
           className="bg-blue-600 text-white px-4 py-2 rounded"

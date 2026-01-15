@@ -26,6 +26,7 @@ export default function AddProperty() {
       const snap = await getDoc(doc(db, "cases", caseId));
       setCaseData(snap.data());
       setLoading(false);
+      console.log("casedata", snap.data());
     }
     load();
   }, [caseId]);
@@ -151,7 +152,7 @@ export default function AddProperty() {
         return;
       }
       navigate(`/case/${caseId}/preview`,{
-  state: { mode: "property" }
+  state: { mode: "property",valuer: caseData.valuer }
 });
     }}
     disabled={uploading || (caseData.propertyImages || []).length === 0}

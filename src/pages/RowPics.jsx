@@ -4,7 +4,8 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import CropModal from "../components/CropModal";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary";
-
+import { useNavigate } from "react-router-dom";
+import CaseNavbar from "../components/CaseNavbar";  
 /* ---------------- META FIELD CONFIG ---------------- */
 const ROWPIC_FIELDS = [
   { key: "name", label: "Name", icon: "👤", type: "text" },
@@ -111,7 +112,7 @@ export default function RowPics() {
   /* ---------------- UI ---------------- */
   return (
     <div className="p-4 max-w-md mx-auto">
-
+<CaseNavbar/>
       {/* ===== META INPUTS (TOP) ===== */}
       <div className="mb-4 p-3 border rounded-lg bg-gray-50">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

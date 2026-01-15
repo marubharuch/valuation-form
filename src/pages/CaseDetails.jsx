@@ -20,10 +20,10 @@ export default function CaseDetails() {
 
   const [caseData, setCaseData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
-
   const [loading, setLoading] = useState(true);
+
   const [editMode, setEditMode] = useState(isNewCase);
-  const [showOptional, setShowOptional] = useState(!isNewCase);
+  const [showOptional, setShowOptional] = useState(true);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(isNewCase);
@@ -32,7 +32,7 @@ export default function CaseDetails() {
   useEffect(() => {
     async function loadCase() {
       if (isNewCase) {
-        const initialData = {
+        const initial = {
           caseReceivedDate: new Date().toISOString().slice(0, 10),
           name: "",
           contactNo: "",
@@ -58,8 +58,8 @@ export default function CaseDetails() {
           status: "open",
         };
 
-        setCaseData(initialData);
-        setOriginalData(initialData);
+        setCaseData(initial);
+        setOriginalData(initial);
         setLoading(false);
         return;
       }
@@ -75,7 +75,7 @@ export default function CaseDetails() {
     loadCase();
   }, [caseId, isNewCase]);
 
-  /* ---------------- FIELD UPDATE (DIRTY TRACKING) ---------------- */
+  /* ---------------- DIRTY TRACKING ---------------- */
   function updateField(key, value) {
     setCaseData((prev) => {
       const updated = { ...prev, [key]: value };
@@ -88,17 +88,11 @@ export default function CaseDetails() {
 
   /* ---------------- SAVE ---------------- */
   async function saveCase() {
-    if (!isDirty || isSaving) return;
+    if (isSaving || !isDirty) return;
 
-    if (
-      !caseData.name ||
-      !caseData.contactNo ||
-      !caseData.city ||
-      !caseData.branch ||
-      !caseData.address ||
-      !caseData.valuer
-    ) {
-      alert("Please fill all required fields");
+    // ✅ ONLY REQUIRED FIELDS
+    if (!caseData.valuer || !caseData.branch) {
+      alert("Valuer code and Branch are required");
       return;
     }
 
@@ -157,104 +151,136 @@ export default function CaseDetails() {
             onClick={() => setEditMode(true)}
             className="text-blue-600 text-sm"
           >
-            ✏️ Edit
+            ✏️ Edit Core Details
           </button>
         )}
       </div>
 
-      {/* CORE DETAILS */}
+      {/* CORE DETAILS (EDIT MODE CONTROLLED) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        <Field label="Name *" value={caseData.name} disabled={!editMode}
-          onChange={(v) => updateField("name", v)} />
-
-        <Field label="Contact No *" value={caseData.contactNo} disabled={!editMode}
-          onChange={(v) => updateField("contactNo", v)} />
-
-        <Field label="City *" value={caseData.city} disabled={!editMode}
-          onChange={(v) => updateField("city", v)} />
-
-        <Field label="Route" value={caseData.route} disabled={!editMode}
-          onChange={(v) => updateField("route", v)} />
-
-        <Field label="Valuer Code *" value={caseData.valuer} center disabled={!editMode}
+       
+        <Field
+          label="Valuer Code *"
+          value={caseData.valuer}
+          disabled={!editMode}
+          center
           onChange={(v) =>
             updateField(
               "valuer",
               v.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
             )
-          } />
+          }
+        />
 
-        <Field label="Branch *" value={caseData.branch} disabled={!editMode}
-          onChange={(v) => updateField("branch", v)} />
+        <Field
+          label="Branch *"
+          value={caseData.branch}
+          disabled={!editMode}
+          onChange={(v) => updateField("branch", v)}
+        />
+       
+       
+       
+        <Field label="Name" value={caseData.name}
+          disabled={!editMode}
+          onChange={(v) => updateField("name", v)} />
 
-        <TextArea label="Address *" value={caseData.address} disabled={!editMode}
-          onChange={(v) => updateField("address", v)} />
+        <Field label="Contact No" value={caseData.contactNo}
+          disabled={!editMode}
+          onChange={(v) => updateField("contactNo", v)} />
+
+        <Field label="City" value={caseData.city}
+          disabled={!editMode}
+          onChange={(v) => updateField("city", v)} />
+
+        <Field label="Route" value={caseData.route}
+          disabled={!editMode}
+          onChange={(v) => updateField("route", v)} />
+
+       
+
+        <TextArea
+          label="Address"
+          value={caseData.address}
+          disabled={!editMode}
+          onChange={(v) => updateField("address", v)}
+        />
       </div>
 
-      {/* OPTIONAL / BILLING */}
-      {!isNewCase && (
-        <>
-          <button
-            onClick={() => setShowOptional(!showOptional)}
-            className="text-blue-600 text-sm mt-4"
-          >
-            {showOptional ? "− Hide Optional / Billing" : "+ Optional / Billing"}
-          </button>
+      {/* OPTIONAL / BILLING (ALWAYS EDITABLE) */}
+      <button
+        onClick={() => setShowOptional(!showOptional)}
+        className="text-blue-600 text-sm mt-4"
+      >
+        {showOptional
+          ? "− Hide Optional / Billing"
+          : "+ Optional / Billing"}
+      </button>
 
-          {showOptional && (
-            <div className="mt-4 bg-gray-50 p-3 rounded">
-              <div className="text-sm font-semibold mb-2">
-                Optional / Billing Details
-              </div>
+      {showOptional && (
+        <div className="mt-4 bg-gray-50 p-3 rounded">
+          <div className="text-sm font-semibold mb-2">
+            Optional / Billing Details
+          </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                <Field
-                  label="Payment Amount"
-                  type="number"
-                  value={caseData.paymentAmount}
-                  onChange={(v) => updateField("paymentAmount", v)}
-                />
-
-                <Select
-                  label="Payment Mode"
-                  value={caseData.paymentMode}
-                  options={["cash", "upi", "bank", "cheque"]}
-                  onChange={(v) => updateField("paymentMode", v)}
-                />
-
-                <Field
-                  label="Payment Received Date"
-                  type="date"
-                  value={caseData.paymentReceivedDate}
-                  onChange={(v) =>
-                    updateField("paymentReceivedDate", v)
-                  }
-                />
-
-                <Field
-                  label="Received By"
-                  value={caseData.receivedBy}
-                  onChange={(v) => updateField("receivedBy", v)}
-                />
-
-                <Field
-                  label="Report Prepared By"
-                  value={caseData.reportBy}
-                  onChange={(v) => updateField("reportBy", v)}
-                />
-
-                <TextArea
-                  label="Remarks"
-                  value={caseData.remarks}
-                  onChange={(v) => updateField("remarks", v)}
-                />
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <Label text="Report Submitted Date" />
+              <input
+                type="date"
+                value={caseData.reportSubmittedDate}
+                onChange={(e) =>
+                  updateField("reportSubmittedDate", e.target.value)
+                }
+                className="border p-2 rounded w-full"
+              />
             </div>
-          )}
-        </>
+
+            <Field
+              label="Payment Amount"
+              type="number"
+              value={caseData.paymentAmount}
+              onChange={(v) => updateField("paymentAmount", v)}
+            />
+
+            <Select
+              label="Payment Mode"
+              value={caseData.paymentMode}
+              options={["cash", "upi", "bank", "cheque"]}
+              onChange={(v) => updateField("paymentMode", v)}
+            />
+
+            <Field
+              label="Payment Received Date"
+              type="date"
+              value={caseData.paymentReceivedDate}
+              onChange={(v) =>
+                updateField("paymentReceivedDate", v)
+              }
+            />
+
+            <Field
+              label="Received By"
+              value={caseData.receivedBy}
+              onChange={(v) => updateField("receivedBy", v)}
+            />
+
+            <Field
+              label="Report Prepared By"
+              value={caseData.reportBy}
+              onChange={(v) => updateField("reportBy", v)}
+            />
+
+            <TextArea
+              label="Remarks"
+              value={caseData.remarks}
+              onChange={(v) => updateField("remarks", v)}
+            />
+          </div>
+        </div>
       )}
 
-      {/* SAVE BUTTON */}
+      {/* SAVE */}
       <button
         onClick={saveCase}
         disabled={!isDirty || isSaving}
@@ -293,7 +319,7 @@ function Field({
       <Label text={label} />
       <input
         type={type}
-        value={value}
+        value={value || ""}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         className={`border p-2 rounded w-full ${
@@ -309,7 +335,7 @@ function TextArea({ label, value, onChange, disabled }) {
     <div className="col-span-2 md:col-span-3 lg:col-span-4">
       <Label text={label} />
       <textarea
-        value={value}
+        value={value || ""}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         className="border p-2 rounded w-full"
@@ -323,7 +349,7 @@ function Select({ label, value, onChange, options }) {
     <div>
       <Label text={label} />
       <select
-        value={value}
+        value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         className="border p-2 rounded w-full"
       >

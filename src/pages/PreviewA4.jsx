@@ -35,6 +35,7 @@ const [footerText, setFooterText] = useState("");
       setLoading(false);
     }
     loadCase();
+    console.log("casedata", caseData);
   }, [caseId]);
 
   /* ------------------ RESPONSIVE SCALE ------------------ */
@@ -62,7 +63,9 @@ const [footerText, setFooterText] = useState("");
     mode === "property"
       ? caseData.propertyImages || []
       : caseData.documents || [];
-
+const valuer = caseData.valuer.toLowerCase()
+const vc=(valuer==="k")
+console.log("valuer", valuer, vc);
   if (images.length === 0) {
     return (
       <div className="p-6 text-center">
@@ -136,6 +139,7 @@ const [footerText, setFooterText] = useState("");
     textAlign: "center",
   }}
 >
+  {vc &&(<>
   <div
     style={{
       fontSize: "11pt",
@@ -159,6 +163,7 @@ const [footerText, setFooterText] = useState("");
     (ADD–SIDDHGIRI, 13, ANANT SOCIETY, OPP. DEVYANI SOC., RAMANNAGAR,
     MANINAGAR, AHMEDABAD)
   </div>
+  </>)}
 </div>
 
 
