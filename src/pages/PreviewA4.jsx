@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import html2pdf from "html2pdf.js";
 
 /* ------------------ UTIL ------------------ */
 function splitIntoPages(images, perPage) {
@@ -16,9 +17,7 @@ export default function PreviewA4() {
   const { caseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-const [footerText, setFooterText] = useState("");
 
-  /* 🔑 PREVIEW MODE */
   const mode = location.state?.mode || "documents";
 
   /* ------------------ STATE ------------------ */
@@ -26,6 +25,12 @@ const [footerText, setFooterText] = useState("");
   const [loading, setLoading] = useState(true);
   const [scale, setScale] = useState(1);
   const [pageIndex, setPageIndex] = useState(0);
+
+  const [footerText, setFooterText] = useState("");
+  const [pageTitles, setPageTitles] = useState({});
+  const [captions, setCaptions] = useState({});
+  const [imageFit, setImageFit] = useState("contain");
+// contain | cover | natural | stretch
 
   /* ------------------ LOAD CASE ------------------ */
   useEffect(() => {
@@ -35,21 +40,36 @@ const [footerText, setFooterText] = useState("");
       setLoading(false);
     }
     loadCase();
-    console.log("casedata", caseData);
   }, [caseId]);
 
   /* ------------------ RESPONSIVE SCALE ------------------ */
   useEffect(() => {
     const handleResize = () => {
       const containerWidth = window.innerWidth * 0.95;
-      setScale(containerWidth / 794); // A4 width
+      setScale(containerWidth / 794); // A4 width px
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  /* ------------------ LOADING STATES ------------------ */
+  /* ------------------ PDF EXPORT ------------------ */
+  const exportPDF = () => {
+    const element = document.getElementById("a4-preview-root");
+
+    html2pdf()
+      .set({
+        margin: 0,
+        filename: `Case_${caseId}_Documents.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      })
+      .from(element)
+      .save();
+  };
+
+  /* ------------------ LOADING ------------------ */
   if (loading) {
     return <div className="p-6 text-center">Loading preview…</div>;
   }
@@ -63,18 +83,12 @@ const [footerText, setFooterText] = useState("");
     mode === "property"
       ? caseData.propertyImages || []
       : caseData.documents || [];
-const valuer = caseData.valuer.toLowerCase()
-const vc=(valuer==="k")
-console.log("valuer", valuer, vc);
+
   if (images.length === 0) {
-    return (
-      <div className="p-6 text-center">
-        No images available for preview
-      </div>
-    );
+    return <div className="p-6 text-center">No images available</div>;
   }
 
-  /* ------------------ PER PAGE (MODE AWARE) ------------------ */
+  /* ------------------ PER PAGE ------------------ */
   const perPage =
     mode === "property"
       ? caseData.imagesPerPage || 1
@@ -95,11 +109,15 @@ console.log("valuer", valuer, vc);
       ? "1fr 1fr"
       : "1fr 1fr 1fr";
 
+  const valuer = caseData.valuer?.toLowerCase();
+  const showHeader = valuer === "k";
+
   /* ------------------ UI ------------------ */
   return (
     <div className="min-h-screen bg-gray-300 print:bg-white">
+
       {/* TOP BAR */}
-      <div className="print-hidden bg-white border-b p-3 flex justify-between">
+      <div className="print-hidden bg-white border-b p-3 flex flex-wrap gap-3 items-center justify-between">
         <button
           onClick={() =>
             navigate(
@@ -112,12 +130,38 @@ console.log("valuer", valuer, vc);
           ← Back
         </button>
 
+        {/* PAGE TITLE */}
+        <input
+          value={pageTitles[pageIndex] || ""}
+          onChange={(e) =>
+            setPageTitles({
+              ...pageTitles,
+              [pageIndex]: e.target.value,
+            })
+          }
+          placeholder={`Title for page ${pageIndex + 1}`}
+          className="border px-2 py-1 text-sm w-56"
+        />
+      
+        <button onClick={exportPDF}>Download PDF</button>
+        <select
+  value={imageFit}
+  onChange={(e) => setImageFit(e.target.value)}
+  className="border px-2 py-1 text-sm"
+>
+  <option value="contain">Fit Image</option>
+  <option value="cover">Fill Box (Crop)</option>
+  <option value="natural">Original Size</option>
+  <option value="stretch">Stretch</option>
+</select>
+
         <button onClick={() => window.print()}>Print</button>
       </div>
 
       {/* PREVIEW */}
       <div className="flex justify-center py-6 print:py-0">
         <div
+          id="a4-preview-root"
           className="a4-page bg-white shadow-xl print:shadow-none"
           style={{
             width: "210mm",
@@ -126,88 +170,100 @@ console.log("valuer", valuer, vc);
             transformOrigin: "top center",
           }}
         >
+
           {/* HEADER */}
-      <div
-  style={{
-    height: "30mm",
-    borderBottom: "2px solid black",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    fontFamily: '"Times New Roman", Times, serif',
-    textAlign: "center",
-  }}
->
-  {vc &&(<>
-  <div
-    style={{
-      fontSize: "11pt",
-      fontWeight: "bold",
-      lineHeight: "1.15",
-      whiteSpace: "nowrap",
-    }}
-  >
-    (NAME–KAUSHIK M. SHAH, B.E. (CIVIL), A.M.I.E., GOVT. APPROVED VALUER,
-    REGI. NO. CAT.I/476)
-  </div>
-
-  <div
-    style={{
-      fontSize: "10pt",
-      lineHeight: "1.15",
-      marginTop: "2px",
-      whiteSpace: "nowrap",
-    }}
-  >
-    (ADD–SIDDHGIRI, 13, ANANT SOCIETY, OPP. DEVYANI SOC., RAMANNAGAR,
-    MANINAGAR, AHMEDABAD)
-  </div>
-  </>)}
-</div>
-
-
-
-          {/* CONTENT */}
           <div
-            className={`grid ${gridCols} gap-2 p-3`}
             style={{
-              height: "247mm",
-              gridTemplateRows: gridRowsStyle,
+              height: "30mm",
+              borderBottom: "2px solid black",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              fontFamily: '"Times New Roman", Times, serif',
+              textAlign: "center",
             }}
           >
-            {pageImages.map((img, i) => (
-              <div
-                key={i}
-                className="border overflow-hidden flex items-center justify-center"
-              >
-                <img
-                  src={img}
-                  className="w-full h-full object-contain"
-                />
+            {showHeader && (
+              <>
+                <div style={{ fontSize: "11pt", fontWeight: "bold" }}>
+                  (NAME–KAUSHIK M. SHAH, B.E. (CIVIL), A.M.I.E., GOVT. APPROVED VALUER)
+                </div>
+                <div style={{ fontSize: "10pt", marginTop: "2px" }}>
+                  (ADD–SIDDHGIRI, MANINAGAR, AHMEDABAD)
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* CONTENT */}
+          <div style={{ height: "247mm" }} className="p-3 flex flex-col gap-2">
+
+            {/* PAGE TITLE */}
+            {pageTitles[pageIndex] && (
+              <div className="text-center text-sm font-semibold">
+                {pageTitles[pageIndex]}
               </div>
-            ))}
+            )}
+
+            {/* IMAGE GRID */}
+            <div
+              className={`grid ${gridCols} gap-2 flex-1`}
+              style={{ gridTemplateRows: gridRowsStyle }}
+            >
+              {pageImages.map((img, i) => {
+                const key = `${pageIndex}-${i}`;
+                return (
+                  <div
+                    key={i}
+                    className="border flex flex-col items-center justify-center p-1"
+                  >
+                    <img
+  src={img}
+  style={{
+    width: "100%",
+    height: imageFit === "natural" ? "auto" : "100%",
+    objectFit:
+      imageFit === "natural"
+        ? "contain"
+        : imageFit === "stretch"
+        ? "fill"
+        : imageFit,
+  }}
+/>
+
+
+                    {/* CAPTION */}
+                    <input
+                      value={captions[key] || ""}
+                      onChange={(e) =>
+                        setCaptions({
+                          ...captions,
+                          [key]: e.target.value,
+                        })
+                      }
+                      placeholder="Optional caption"
+                      className="border-none outline-none text-xs text-center mt-1 w-full bg-transparent"
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* FOOTER */}
-{/* FOOTER */}
-<div
-  className="border-t px-4 text-xs flex justify-between items-center"
-  style={{ height: "20mm" }}
->
-  {/* Left side */}
-  .
-
-  {/* Right side – PRINT ONLY INPUT */}
-  <input
-    value={footerText}
-    onChange={(e) => setFooterText(e.target.value)}
-    placeholder="Page No / Ref"
-    className="border-none outline-none bg-transparent text-right text-xs w-40"
-  />
-</div>
-
-
+          <div
+            className="border-t px-4 text-xs flex justify-between items-center"
+            style={{ height: "20mm" }}
+          >
+            <span />
+            <input
+              value={footerText}
+              onChange={(e) => setFooterText(e.target.value)}
+              placeholder="Page No / Ref"
+              className="border-none outline-none bg-transparent text-right text-xs w-40"
+            />
+          </div>
         </div>
       </div>
 
