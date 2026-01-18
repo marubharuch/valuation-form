@@ -1,203 +1,237 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  useParams,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
-import { DOC_LAYOUTS } from "../utils/a4Layouts";
 import CropModal from "../components/CropModal";
-import { uploadToCloudinary } from "../utils/uploadToCloudinary";
 import CaseNavbar from "../components/CaseNavbar";
+
+/* allowed print sizes */
+const PRINT_SIZES = [1, 2, 3, 4, 6];
+
+/* ---------- utility: URL → base64 ---------- */
+async function urlToBase64(url) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
 
 export default function Documents() {
   const { caseId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [caseData, setCaseData] = useState(null);
+  /* ------------------ STATE ------------------ */
   const [loading, setLoading] = useState(true);
-
-  // 🔹 local-only base64 images (never saved to Firestore)
-  const [localDocs, setLocalDocs] = useState([]);
+  const [docs, setDocs] = useState([]);
+  const [rawDocs, setRawDocs] = useState([]);
+  const [showRawPics, setShowRawPics] = useState(false);
 
   const [cropSrc, setCropSrc] = useState(null);
   const [cropIndex, setCropIndex] = useState(null);
-  const [uploading, setUploading] = useState(false);
 
   /* ------------------ LOAD CASE ------------------ */
   useEffect(() => {
     async function loadCase() {
+
+      // 🔁 Coming back from preview
+      if (location.state?.images) {
+        setDocs(location.state.images);
+        setLoading(false);
+        return;
+      }
+
       const snap = await getDoc(doc(db, "cases", caseId));
-      setCaseData(snap.data());
+      const data = snap.data() || {};
+
+      const loadedDocs = [];
+      const loadedRaw = [];
+
+      // 1️⃣ Saved documents (priority)
+      if (data.documents?.length) {
+        for (const d of data.documents) {
+          const base64 = await urlToBase64(d.imageUrl);
+          loadedDocs.push({
+            src: base64,
+            title: d.title || "",
+            printSize: d.printSize,
+            selected: true,
+            source: "saved",
+          });
+        }
+      }
+
+      // 2️⃣ Raw pics
+      if (data.rowPics?.length) {
+        for (const r of data.rowPics) {
+          const base64 = await urlToBase64(r.imageUrl);
+          loadedRaw.push({
+            src: base64,
+            title: "",
+            printSize: null,
+            selected: false,
+            source: "raw",
+          });
+        }
+      }
+
+      setDocs(loadedDocs);
+      setRawDocs(loadedRaw);
+
+      // show raw automatically if no saved docs
+      setShowRawPics(loadedDocs.length === 0);
       setLoading(false);
     }
+
     loadCase();
   }, [caseId]);
 
-  if (loading || !caseData) {
+  if (loading) {
     return <div className="p-6 text-center">Loading documents…</div>;
   }
 
-  /* ------------------ FILE SELECT (LOCAL ONLY) ------------------ */
-  const onSelect = (e) => {
-    const files = [...e.target.files];
-    e.target.value = null;
+  /* ------------------ HELPERS ------------------ */
+ const showRawPictures = () => {
+  setDocs(prev => [...prev, ...rawDocs]);
+  setRawDocs([]);        // 🔥 remove rawDocs from separate state
+  setShowRawPics(true);
+};
 
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setLocalDocs((prev) => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+
+  const toggleSelected = (index) => {
+    setDocs((prev) =>
+      prev.map((d, i) =>
+        i === index ? { ...d, selected: !d.selected } : d
+      )
+    );
   };
 
-  /* ------------------ REMOVE UPLOADED IMAGE ------------------ */
-  const removeUploadedDoc = async (index) => {
-    const updated = caseData.documents.filter((_, i) => i !== index);
-
-    await updateDoc(doc(db, "cases", caseId), {
-      documents: updated,
-    });
-
-    setCaseData({ ...caseData, documents: updated });
+  const changePrintSize = (index, size) => {
+    setDocs((prev) =>
+      prev.map((d, i) =>
+        i === index
+          ? { ...d, printSize: size, selected: true }
+          : d
+      )
+    );
   };
 
-  /* ------------------ UPLOAD ALL LOCAL IMAGES ------------------ */
-  const uploadAllLocalDocs = async () => {
-    if (localDocs.length === 0) return;
-
-    setUploading(true);
-
-    const uploadedUrls = [];
-
-    for (const base64 of localDocs) {
-      const url = await uploadToCloudinary(base64);
-      uploadedUrls.push(url);
-    }
-
-    const updatedDocs = [...caseData.documents, ...uploadedUrls];
-
-    await updateDoc(doc(db, "cases", caseId), {
-      documents: updatedDocs,
-    });
-
-    setCaseData({ ...caseData, documents: updatedDocs });
-    setLocalDocs([]);
-    setUploading(false);
+  const removeImage = (index) => {
+    setDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /* ------------------ SAVE SINGLE CROPPED IMAGE ------------------ */
-  const onCropSave = async (croppedBase64) => {
-    setUploading(true);
-
-    const imageUrl = await uploadToCloudinary(croppedBase64);
-
-    const updatedDocs = [...caseData.documents, imageUrl];
-
-    await updateDoc(doc(db, "cases", caseId), {
-      documents: updatedDocs,
-    });
-
-    setCaseData({ ...caseData, documents: updatedDocs });
-
-    // remove from local buffer
-    setLocalDocs((prev) => prev.filter((_, i) => i !== cropIndex));
-
+  const onCropSave = (croppedBase64) => {
+    setDocs((prev) =>
+      prev.map((d, i) =>
+        i === cropIndex ? { ...d, src: croppedBase64 } : d
+      )
+    );
     setCropSrc(null);
     setCropIndex(null);
-    setUploading(false);
   };
-
-  const layout = DOC_LAYOUTS[caseData.documentsPerPage];
 
   /* ------------------ UI ------------------ */
   return (
     <div className="p-4 max-w-md mx-auto">
-      <CaseNavbar/>
-      <h2 className="text-lg font-semibold mb-2">Upload Documents</h2>
+      <CaseNavbar />
 
-      {/* Layout selector */}
-      <div className="mb-4">
-        <div className="text-sm text-gray-600 mb-2">
-          Documents per A4 page
-        </div>
+      <h2 className="text-lg font-semibold mb-3">
+        Prepare Documents
+      </h2>
 
-        <div className="flex gap-2">
-          {[1, 2, 4].map((n) => (
-            <button
-              key={n}
-              onClick={async () => {
-                await updateDoc(doc(db, "cases", caseId), {
-                  documentsPerPage: n,
-                });
-                setCaseData({ ...caseData, documentsPerPage: n });
-              }}
-              className={`px-3 py-2 rounded border text-sm ${
-                caseData.documentsPerPage === n
-                  ? "bg-blue-600 text-white"
-                  : "bg-white"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* SHOW RAW PICS BUTTON */}
+     {docs.length > 0 && rawDocs.length > 0 && !showRawPics && (
+  <button
+    onClick={showRawPictures}
+    className="mb-3 px-4 py-2 border rounded text-sm"
+  >
+    Show Raw Pics
+  </button>
+)}
 
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={onSelect}
-        className="mb-4"
-      />
+      {/* IMAGE GRID */}
+      <div className="grid grid-cols-2 gap-3">
+        {docs.map((doc, i) => (
+          <div key={i} className="border rounded p-2 relative">
 
-      {/* PREVIEW GRID */}
-      <div className="grid grid-cols-3 gap-2">
-        {/* Uploaded (Cloudinary URLs) */}
-        {caseData.documents.map((img, i) => (
-          <div key={`u-${i}`} className="relative">
+            {/* IMAGE */}
             <img
-              src={img}
-              className="h-24 w-full object-cover rounded"
+              src={doc.src}
+              onClick={() => {
+                setCropSrc(doc.src);
+                setCropIndex(i);
+              }}
+              className="h-32 w-full object-cover rounded cursor-pointer"
             />
+
+            {/* REMOVE */}
             <button
-              onClick={() => removeUploadedDoc(i)}
-              className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 text-xs"
+              onClick={() => removeImage(i)}
+              className="absolute top-1 right-1 bg-black/70 text-white w-6 h-6 rounded-full text-xs"
             >
               ✕
             </button>
-          </div>
-        ))}
 
-        {/* Local (base64, not uploaded yet) */}
-        {localDocs.map((img, i) => (
-          <div key={`l-${i}`} className="relative">
-            <img
-              src={img}
-              onClick={() => {
-                setCropSrc(img);
-                setCropIndex(i);
-              }}
-              className="h-24 w-full object-cover rounded cursor-pointer ring-2 ring-blue-400"
+            {/* TITLE */}
+            <input
+              type="text"
+              placeholder="Document title"
+              value={doc.title}
+              onChange={(e) =>
+                setDocs((prev) =>
+                  prev.map((d, idx) =>
+                    idx === i
+                      ? { ...d, title: e.target.value }
+                      : d
+                  )
+                )
+              }
+              className="w-full border rounded px-2 py-1 text-xs mt-1"
             />
+
+            {/* CHECKBOX */}
+            <label className="flex items-center gap-2 mt-1 text-xs">
+              <input
+                type="checkbox"
+                checked={doc.selected}
+                onChange={() => toggleSelected(i)}
+              />
+              Include in print
+            </label>
+
+            {/* PRINT SIZE */}
+            <div className="mt-2">
+              <div className="text-xs mb-1">Print size</div>
+              <div className="flex gap-1 flex-wrap">
+                {PRINT_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => changePrintSize(i, size)}
+                    className={`px-2 py-1 text-xs border rounded ${
+                      doc.printSize === size
+                        ? "bg-blue-600 text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* UPLOAD ALL BUTTON */}
-      {localDocs.length > 0 && (
-        <button
-          onClick={uploadAllLocalDocs}
-          disabled={uploading}
-          className="w-full mt-4 bg-green-600 text-white py-2 rounded disabled:opacity-50"
-        >
-          {uploading
-            ? "Uploading…"
-            : `Upload ${localDocs.length} Images`}
-        </button>
-      )}
-
-      {/* Navigation */}
+      {/* NAVIGATION */}
       <div className="flex gap-3 mt-6">
         <button
           onClick={() => navigate(`/case/${caseId}`)}
@@ -207,25 +241,28 @@ export default function Documents() {
         </button>
 
         <button
-          onClick={() => navigate(`/case/${caseId}/preview`,{
-  state: { mode: "documents" }
-})}
-          disabled={uploading}
+          disabled={docs.filter((d) => d.selected).length === 0}
+          onClick={() =>
+            navigate("/docpreview/${caseId}", {
+              state: {
+                images: docs.filter((d) => d.selected),
+              },
+            })
+          }
           className="flex-1 bg-blue-600 text-white rounded-lg py-3 disabled:opacity-50"
         >
-          Preview →
+          Preview & Print →
         </button>
       </div>
 
-      {/* Crop modal */}
+      {/* CROP MODAL */}
       {cropSrc && (
-      <CropModal
-  src={cropSrc}
-  mode="a4"
-  layout={caseData.documentsPerPage}   // 1,2,4 etc (same as before)
-  onSave={onCropSave}
-  onClose={() => setCropSrc(null)}
-/>
+        <CropModal
+          src={cropSrc}
+          mode="a4"
+          onSave={onCropSave}
+          onClose={() => setCropSrc(null)}
+        />
       )}
     </div>
   );

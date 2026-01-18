@@ -6,6 +6,7 @@ import CaseDetails from "./pages/CaseDetails";
 import Documents from "./pages/Documents";
 import AddProperty from "./pages/AddProperty";
 import PreviewA4 from "./pages/PreviewA4";
+import Preview from "./pages/Preview";
 import Rawpics from "./pages/RowPics";
 export default function App() {
   return (
@@ -25,6 +26,9 @@ export default function App() {
         <Route path="/case/:caseId/property" element={<AddProperty />} />
         <Route path="/case/:caseId/rawpics" element={<Rawpics />} />
         <Route path="/case/:caseId/preview" element={<PreviewA4 />} />
+        <Route path="/docpreview/:caseId" element={<Preview />} />
+
+       
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />

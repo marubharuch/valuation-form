@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import html2pdf from "html2pdf.js";
 
 /* ------------------ UTIL ------------------ */
@@ -18,252 +16,205 @@ export default function PreviewA4() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const mode = location.state?.mode || "documents";
+  /* ------------------ DATA FROM DOCUMENTS ------------------ */
+  const images = location.state?.images || [];
+  const perPage = location.state?.perPage || 1;
 
   /* ------------------ STATE ------------------ */
-  const [caseData, setCaseData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [scale, setScale] = useState(1);
   const [pageIndex, setPageIndex] = useState(0);
-
-  const [footerText, setFooterText] = useState("");
   const [pageTitles, setPageTitles] = useState({});
   const [captions, setCaptions] = useState({});
+  const [footerText, setFooterText] = useState("");
   const [imageFit, setImageFit] = useState("contain");
-// contain | cover | natural | stretch
 
-  /* ------------------ LOAD CASE ------------------ */
-  useEffect(() => {
-    async function loadCase() {
-      const snap = await getDoc(doc(db, "cases", caseId));
-      setCaseData(snap.data());
-      setLoading(false);
-    }
-    loadCase();
-  }, [caseId]);
+  if (!images.length) {
+    return (
+      <div className="p-6 text-center">
+        No images received
+        <br />
+        <button onClick={() => navigate(-1)} className="underline mt-3">
+          Go back
+        </button>
+      </div>
+    );
+  }
+
+  /* ------------------ PAGINATION ------------------ */
+  const pages = splitIntoPages(images, perPage);
 
   /* ------------------ RESPONSIVE SCALE ------------------ */
   useEffect(() => {
     const handleResize = () => {
       const containerWidth = window.innerWidth * 0.95;
-      setScale(containerWidth / 794); // A4 width px
+      setScale(containerWidth / 794); // A4 px width
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  /* ------------------ GRID SETTINGS ------------------ */
+  const gridCols =
+    perPage === 4 || perPage === 6 ? "grid-cols-2" : "grid-cols-1";
+
+ const gridRowsStyle =
+  perPage === 1
+    ? "minmax(0, 1fr)"
+    : perPage === 2
+    ? "repeat(2, minmax(0, 1fr))"
+    : perPage === 3
+    ? "repeat(3, minmax(0, 1fr))"
+    : perPage === 4
+    ? "repeat(2, minmax(0, 1fr))"
+    : "repeat(3, minmax(0, 1fr))"; // for 6
+
+
   /* ------------------ PDF EXPORT ------------------ */
   const exportPDF = () => {
-    const element = document.getElementById("a4-preview-root");
+    const el = document.getElementById("a4-preview-root");
 
     html2pdf()
       .set({
         margin: 0,
         filename: `Case_${caseId}_Documents.pdf`,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
+        html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       })
-      .from(element)
+      .from(el)
       .save();
   };
-
-  /* ------------------ LOADING ------------------ */
-  if (loading) {
-    return <div className="p-6 text-center">Loading preview…</div>;
-  }
-
-  if (!caseData) {
-    return <div className="p-6 text-center">No case data found</div>;
-  }
-
-  /* ------------------ IMAGE SOURCE ------------------ */
-  const images =
-    mode === "property"
-      ? caseData.propertyImages || []
-      : caseData.documents || [];
-
-  if (images.length === 0) {
-    return <div className="p-6 text-center">No images available</div>;
-  }
-
-  /* ------------------ PER PAGE ------------------ */
-  const perPage =
-    mode === "property"
-      ? caseData.imagesPerPage || 1
-      : caseData.documentsPerPage || 1;
-
-  const pages = splitIntoPages(images, perPage);
-  const pageImages = pages[pageIndex] || [];
-
-  const gridCols =
-    perPage === 4 || perPage === 6 ? "grid-cols-2" : "grid-cols-1";
-
-  const gridRowsStyle =
-    perPage === 1
-      ? "1fr"
-      : perPage === 2
-      ? "1fr 1fr"
-      : perPage === 4
-      ? "1fr 1fr"
-      : "1fr 1fr 1fr";
-
-  const valuer = caseData.valuer?.toLowerCase();
-  const showHeader = valuer === "k";
 
   /* ------------------ UI ------------------ */
   return (
     <div className="min-h-screen bg-gray-300 print:bg-white">
 
-      {/* TOP BAR */}
-      <div className="print-hidden bg-white border-b p-3 flex flex-wrap gap-3 items-center justify-between">
-        <button
-          onClick={() =>
-            navigate(
-              mode === "property"
-                ? `/case/${caseId}/property`
-                : `/case/${caseId}/documents`
-            )
-          }
-        >
-          ← Back
-        </button>
+      {/* CONTROLS */}
+      <div className="print-hidden bg-white border-b p-3 flex flex-wrap gap-3 justify-between items-center">
+        <button onClick={() => navigate(-1)}>← Back</button>
 
-        {/* PAGE TITLE */}
         <input
           value={pageTitles[pageIndex] || ""}
           onChange={(e) =>
-            setPageTitles({
-              ...pageTitles,
-              [pageIndex]: e.target.value,
-            })
+            setPageTitles({ ...pageTitles, [pageIndex]: e.target.value })
           }
           placeholder={`Title for page ${pageIndex + 1}`}
           className="border px-2 py-1 text-sm w-56"
         />
-      
-        <button onClick={exportPDF}>Download PDF</button>
-        <select
-  value={imageFit}
-  onChange={(e) => setImageFit(e.target.value)}
-  className="border px-2 py-1 text-sm"
->
-  <option value="contain">Fit Image</option>
-  <option value="cover">Fill Box (Crop)</option>
-  <option value="natural">Original Size</option>
-  <option value="stretch">Stretch</option>
-</select>
 
+        <select
+          value={imageFit}
+          onChange={(e) => setImageFit(e.target.value)}
+          className="border px-2 py-1 text-sm"
+        >
+          <option value="contain">Fit</option>
+          <option value="cover">Cover</option>
+          <option value="natural">Original</option>
+          <option value="stretch">Stretch</option>
+        </select>
+
+        <button onClick={exportPDF}>Download PDF</button>
         <button onClick={() => window.print()}>Print</button>
       </div>
 
-      {/* PREVIEW */}
+      {/* PREVIEW ROOT (ALL PAGES ALWAYS RENDERED) */}
       <div className="flex justify-center py-6 print:py-0">
-        <div
-          id="a4-preview-root"
-          className="a4-page bg-white shadow-xl print:shadow-none"
-          style={{
-            width: "210mm",
-            height: "297mm",
-            transform: `scale(${scale})`,
-            transformOrigin: "top center",
-          }}
-        >
+        <div id="a4-preview-root" className="flex flex-col gap-10">
 
-          {/* HEADER */}
-          <div
-            style={{
-              height: "30mm",
-              borderBottom: "2px solid black",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              fontFamily: '"Times New Roman", Times, serif',
-              textAlign: "center",
-            }}
-          >
-            {showHeader && (
-              <>
-                <div style={{ fontSize: "11pt", fontWeight: "bold" }}>
-                  (NAME–KAUSHIK M. SHAH, B.E. (CIVIL), A.M.I.E., GOVT. APPROVED VALUER)
-                </div>
-                <div style={{ fontSize: "10pt", marginTop: "2px" }}>
-                  (ADD–SIDDHGIRI, MANINAGAR, AHMEDABAD)
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* CONTENT */}
-          <div style={{ height: "247mm" }} className="p-3 flex flex-col gap-2">
-
-            {/* PAGE TITLE */}
-            {pageTitles[pageIndex] && (
-              <div className="text-center text-sm font-semibold">
-                {pageTitles[pageIndex]}
-              </div>
-            )}
-
-            {/* IMAGE GRID */}
+          {pages.map((pageImages, pIndex) => (
             <div
-              className={`grid ${gridCols} gap-2 flex-1`}
-              style={{ gridTemplateRows: gridRowsStyle }}
+              key={pIndex}
+              className={`a4-page bg-white shadow-xl print:shadow-none ${
+                pIndex === pageIndex ? "" : "screen-hidden"
+              }`}
+              style={{
+                width: "210mm",
+                height: "297mm",
+                transform: `scale(${scale})`,
+                transformOrigin: "top center",
+              }}
             >
-              {pageImages.map((img, i) => {
-                const key = `${pageIndex}-${i}`;
-                return (
-                  <div
-                    key={i}
-                    className="border flex flex-col items-center justify-center p-1"
-                  >
-                    <img
-  src={img}
-  style={{
-    width: "100%",
-    height: imageFit === "natural" ? "auto" : "100%",
-    objectFit:
-      imageFit === "natural"
-        ? "contain"
-        : imageFit === "stretch"
-        ? "fill"
-        : imageFit,
-  }}
-/>
+              {/* HEADER */}
+              <div
+                style={{
+                  height: "30mm",
+                  borderBottom: "2px solid black",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  fontWeight: "bold",
+                  fontFamily: "Times New Roman",
+                }}
+              >
+                DOCUMENT PHOTOGRAPHS
+              </div>
 
-
-                    {/* CAPTION */}
-                    <input
-                      value={captions[key] || ""}
-                      onChange={(e) =>
-                        setCaptions({
-                          ...captions,
-                          [key]: e.target.value,
-                        })
-                      }
-                      placeholder="Optional caption"
-                      className="border-none outline-none text-xs text-center mt-1 w-full bg-transparent"
-                    />
+              {/* CONTENT */}
+              <div style={{ height: "247mm" }} className="p-3 flex flex-col gap-2">
+                {pageTitles[pIndex] && (
+                  <div className="text-center text-sm font-semibold">
+                    {pageTitles[pIndex]}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                )}
 
-          {/* FOOTER */}
-          <div
-            className="border-t px-4 text-xs flex justify-between items-center"
-            style={{ height: "20mm" }}
-          >
-            <span />
-            <input
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
-              placeholder="Page No / Ref"
-              className="border-none outline-none bg-transparent text-right text-xs w-40"
-            />
-          </div>
+                <div
+                  className={`grid ${gridCols} gap-2 flex-1`}
+                  style={{ gridTemplateRows: gridRowsStyle }}
+                >
+                  {pageImages.map((img, i) => {
+                    const key = `${pIndex}-${i}`;
+                    return (
+                      <div key={i} className="border flex flex-col p-1">
+                        <img
+                          src={img}
+                          style={{
+                            width: "100%",
+                            height:
+                              imageFit === "natural" ? "auto" : "100%",
+                            objectFit:
+                              imageFit === "natural"
+                                ? "contain"
+                                : imageFit === "stretch"
+                                ? "fill"
+                                : imageFit,
+                          }}
+                        />
+
+                        <input
+                          value={captions[key] || ""}
+                          onChange={(e) =>
+                            setCaptions({
+                              ...captions,
+                              [key]: e.target.value,
+                            })
+                          }
+                          placeholder="Caption"
+                          className="border-none outline-none text-xs text-center bg-transparent mt-1"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* FOOTER */}
+              <div
+                className="border-t px-4 text-xs flex justify-between items-center"
+                style={{ height: "20mm" }}
+              >
+                <span>
+                  Page {pIndex + 1} of {pages.length}
+                </span>
+                <input
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                  placeholder="Ref / Case No"
+                  className="border-none outline-none bg-transparent text-right text-xs w-40"
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -272,7 +223,7 @@ export default function PreviewA4() {
         <button
           disabled={pageIndex === 0}
           onClick={() => setPageIndex((p) => p - 1)}
-          className="border px-4 py-2 rounded disabled:opacity-40"
+          className="border px-4 py-2 rounded"
         >
           ◀ Prev
         </button>
@@ -284,11 +235,31 @@ export default function PreviewA4() {
         <button
           disabled={pageIndex === pages.length - 1}
           onClick={() => setPageIndex((p) => p + 1)}
-          className="border px-4 py-2 rounded disabled:opacity-40"
+          className="border px-4 py-2 rounded"
         >
           Next ▶
         </button>
       </div>
+
+      {/* CSS */}
+      <style>{`
+        .screen-hidden {
+          display: none;
+        }
+
+        @media print {
+          .print-hidden {
+            display: none !important;
+          }
+          .screen-hidden {
+            display: block !important;
+          }
+          .a4-page {
+            transform: none !important;
+            page-break-after: always;
+          }
+        }
+      `}</style>
     </div>
   );
 }

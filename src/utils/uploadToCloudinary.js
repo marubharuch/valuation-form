@@ -2,6 +2,7 @@ export async function uploadToCloudinary(dataUrl, folder) {
   const formData = new FormData();
   formData.append("file", dataUrl);
   formData.append("upload_preset", "dss-val");
+console.log("Cloudinary input:", arguments);
 
   // ✅ optional folder support
   if (folder) {
