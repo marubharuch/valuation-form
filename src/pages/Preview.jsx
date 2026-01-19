@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { doc, setDoc } from "firebase/firestore";
+import { doc,getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary";
 import { useState } from "react";
@@ -20,11 +20,18 @@ const SIZE_SPAN = {
   6: { col: 1, row: 2 }, // half width + 1/3 height
 };
 
+const FOOTER_HEIGHT_MM = 15; // reserved space for footer (mm)
 
 export default function Preview() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { caseId } = useParams();
+
+  const [footerText, setFooterText] = useState(state?.footerText || "");
+const [uniqId, setUniqId] = useState(
+  state?.uniqId || `DOC-${Date.now()}`
+);
+
 
   // 🚨 HARD GUARD
   if (!caseId) {
@@ -60,53 +67,78 @@ export default function Preview() {
   if (currentPage.length) pages.push(currentPage);
 
   /* ------------------ SAVE TO FIRESTORE ------------------ */
-  const saveDocuments = async () => {
+ const saveDocuments = async () => {
   if (saving) return;
   setSaving(true);
 
   try {
-    const savedDocs = [];
+    const caseRef = doc(db, "cases", caseId);
+    const snap = await getDoc(caseRef);
 
-    for (const img of images) {
-      const base64 = getBase64(img);
-      if (typeof base64 !== "string") continue;
+    const existingDocs = snap.data()?.documents || [];
+    const updatedDocs = [...existingDocs];
 
-      const imageUrl = await uploadToCloudinary(
-        base64,
-        `documents/${caseId}`
-      );
+    for (const img of state.images) {
 
-      savedDocs.push({
-        id: crypto.randomUUID(),
-        imageUrl,
-        title: img.title || "",
-        printSize: img.printSize,
-        createdAt: new Date(),
-      });
-    }
+      // 1️⃣ RAW IMAGE → always upload & new doc
+      if (img.source === "raw") {
+        const imageUrl = await uploadToCloudinary(img.src, `documents/${caseId}`);
 
-    if (!savedDocs.length) {
-      alert("No valid images to save");
-      return;
+        updatedDocs.push({
+          id: crypto.randomUUID(),
+          imageUrl,
+          title: img.title || "",
+          printSize: img.printSize,
+          createdAt: new Date(),
+        });
+      }
+
+      // 2️⃣ FIRESTORE IMAGE
+      if (img.source === "firestore") {
+
+        // ask user only if modified
+        if (img.isModified) {
+          const replace = window.confirm(
+            "This document already exists.\n\nOK = Replace\nCancel = Save as new"
+          );
+
+          // upload only if replaced
+          const imageUrl = replace
+            ? await uploadToCloudinary(img.src, `documents/${caseId}`)
+            : img.imageUrl;
+
+          if (replace) {
+            // remove old
+            const index = updatedDocs.findIndex(d => d.id === img.docId);
+            if (index !== -1) updatedDocs.splice(index, 1);
+          }
+
+          updatedDocs.push({
+            id: replace ? img.docId : crypto.randomUUID(),
+            imageUrl,
+            title: img.title || "",
+            printSize: img.printSize,
+            createdAt: new Date(),
+          });
+        }
+      }
     }
 
     await setDoc(
-      doc(db, "cases", caseId),
-      {
-        documents: savedDocs,
-        updatedAt: new Date(),
-      },
+      caseRef,
+      { documents: updatedDocs, updatedAt: new Date() },
       { merge: true }
     );
 
     alert("Documents saved successfully ✅");
   } catch (err) {
-    console.error("Save failed:", err);
+    console.error(err);
     alert("Failed to save documents");
   } finally {
     setSaving(false);
   }
 };
+
 const printOnly = () => {
   window.print();
 };
@@ -152,6 +184,19 @@ const printOnly = () => {
     </button>
   </div>
 </div>
+<div className="mb-4 print:hidden">
+  <label className="text-sm font-medium">
+    Footer Text (will print on every page)
+  </label>
+  <textarea
+    className="w-full border rounded p-2 text-sm"
+    rows={2}
+    value={footerText}
+    onChange={(e) => setFooterText(e.target.value)}
+    placeholder="Example: Valuation report – confidential"
+  />
+</div>
+
 
 
         {/* A4 PAGES */}
@@ -167,6 +212,7 @@ const printOnly = () => {
     height: "297mm",
     padding: "10mm",
     boxSizing: "border-box",
+     position: "relative", 
     pageBreakAfter: "always",
   }}
 >
@@ -176,7 +222,8 @@ const printOnly = () => {
       gridTemplateColumns: "1fr 1fr",
       gridTemplateRows: "repeat(6, 1fr)",
       gap: "4mm",
-      height: "100%",
+      height: `calc(297mm - 20mm - ${FOOTER_HEIGHT_MM}mm)`,
+
     }}
   >
     {page.map((img, i) => {
@@ -193,23 +240,57 @@ const printOnly = () => {
           }}
         >
           <img
-            src={img.src}
-            alt={img.title || ""}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
-          />
-          {img.title && (
-            <div className="text-xs text-center mt-1">
-              {img.title}
-            </div>
-          )}
+  src={img.src}
+  alt={img.title || ""}
+  style={{
+    width: "100%",
+    height: img.title ? "calc(100% - 14px)" : "100%",
+    objectFit: "contain",
+    display: "block",
+  }}
+/>
+
+{img.title && (
+  <div
+    style={{
+      fontSize: "10px",
+      textAlign: "center",
+      lineHeight: "12px",
+      marginTop: "2px",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    }}
+  >
+    {img.title}
+  </div>
+)}
+
         </div>
       );
     })}
   </div>
+{footerText && (
+  <div
+    style={{
+      position: "absolute",
+      bottom: "10mm",
+      left: "10mm",
+      right: "10mm",
+      textAlign: "center",
+      fontSize: "10px",
+      color: "#555",
+      borderTop: "1px solid #ccc",
+      paddingTop: "3mm",
+      height: `${FOOTER_HEIGHT_MM}mm`,
+      boxSizing: "border-box",
+    }}
+  >
+    {footerText}
+  </div>
+)}
+
+
 </div>
 
           );
@@ -257,14 +338,14 @@ function RowBlock({ row }) {
           }}
         >
           <img
-            src={img.src}
-            alt={img.title || ""}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
-          />
+  src={img.src}
+  style={{
+    width: "100%",
+    height: img.title ? "calc(100% - 14px)" : "100%",
+    objectFit: "contain",
+  }}
+/>
+
           {img.title && (
             <div className="text-xs text-center mt-1">
               {img.title}

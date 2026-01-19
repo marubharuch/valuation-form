@@ -40,60 +40,58 @@ export default function Documents() {
   const [cropIndex, setCropIndex] = useState(null);
 
   /* ------------------ LOAD CASE ------------------ */
-  useEffect(() => {
-    async function loadCase() {
+useEffect(() => {
+  async function loadCase() {
+    console.log("location.state =", location.state);
 
-      // 🔁 Coming back from preview
-      if (location.state?.images) {
-        setDocs(location.state.images);
-        setLoading(false);
-        return;
-      }
-
-      const snap = await getDoc(doc(db, "cases", caseId));
-      const data = snap.data() || {};
-
-      const loadedDocs = [];
-      const loadedRaw = [];
-
-      // 1️⃣ Saved documents (priority)
-      if (data.documents?.length) {
-        for (const d of data.documents) {
-          const base64 = await urlToBase64(d.imageUrl);
-          loadedDocs.push({
-            src: base64,
-            title: d.title || "",
-            printSize: d.printSize,
-            selected: true,
-            source: "saved",
-          });
-        }
-      }
-
-      // 2️⃣ Raw pics
-      if (data.rowPics?.length) {
-        for (const r of data.rowPics) {
-          const base64 = await urlToBase64(r.imageUrl);
-          loadedRaw.push({
-            src: base64,
-            title: "",
-            printSize: null,
-            selected: false,
-            source: "raw",
-          });
-        }
-      }
-
-      setDocs(loadedDocs);
-      setRawDocs(loadedRaw);
-
-      // show raw automatically if no saved docs
-      setShowRawPics(loadedDocs.length === 0);
+    // 🔁 Coming back from preview (OPTIONAL – safe)
+    if (location.state?.images && location.state?.fromPreview) {
+      setDocs(location.state.images);
       setLoading(false);
+      return;
     }
 
-    loadCase();
-  }, [caseId]);
+    const snap = await getDoc(doc(db, "cases", caseId));
+    const data = snap.data() || {};
+
+    console.log("Firestore rowPics =", data.rowPics);
+
+    const merged = [];
+
+    // 1️⃣ Saved documents (already selected)
+    if (data.documents?.length) {
+      for (const d of data.documents) {
+        const base64 = await urlToBase64(d.imageUrl);
+        merged.push({
+          src: base64,
+          title: d.title || "",
+          printSize: d.printSize ?? null,
+          selected: true,
+          source: "saved",
+        });
+      }
+    }
+
+    // 2️⃣ Raw pics (unchecked)
+    if (data.rowPics?.length) {
+      for (const r of data.rowPics) {
+        const base64 = await urlToBase64(r.imageUrl);
+        merged.push({
+          src: base64,
+          title: "",
+          printSize: null,
+          selected: false,
+          source: "raw",
+        });
+      }
+    }
+
+    setDocs(merged);
+    setLoading(false);
+  }
+
+  loadCase();
+}, [caseId]);
 
   if (loading) {
     return <div className="p-6 text-center">Loading documents…</div>;
@@ -243,7 +241,7 @@ export default function Documents() {
         <button
           disabled={docs.filter((d) => d.selected).length === 0}
           onClick={() =>
-            navigate("/docpreview/${caseId}", {
+           navigate(`/docpreview/${caseId}`, {
               state: {
                 images: docs.filter((d) => d.selected),
               },
