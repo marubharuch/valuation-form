@@ -340,54 +340,6 @@ function openGoogleMap() {
       {showOptional && (
         <div className="mt-4 bg-gray-50 p-3 rounded">
 
-      <div className="col-span-2 md:col-span-3 lg:col-span-4">
-  <Label text="Property Location (GPS)" />
-
-  <div className="flex gap-2">
-    <input
-      type="text"
-      value={caseData.propertyLocationText || ""}
-      readOnly
-      placeholder="Latitude, Longitude will appear here"
-      className="border p-2 rounded w-full bg-gray-100"
-    />
-
-    <button
-  type="button"
-  onClick={captureAccurateLocation}
-  disabled={gpsBusy}
-  className={`px-4 rounded text-white flex items-center gap-2
-    ${gpsBusy ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"}
-  `}
->
-  {gpsBusy && (
-    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-  )}
-  {gpsBusy ? "Collecting…" : "📍 Get"}
-</button>
-
-
-    <button
-      type="button"
-      onClick={openGoogleMap}
-      disabled={!caseData.propertyLocation}
-      className={`px-4 rounded text-white
-        ${
-          caseData.propertyLocation
-            ? "bg-green-600"
-            : "bg-gray-400 cursor-not-allowed"
-        }`}
-    >
-      🗺 Map
-    </button>
-  </div>
-
-  {caseData.propertyLocation && (
-    <div className="text-xs text-gray-500 mt-1">
-      Accuracy: ±{caseData.propertyLocation.accuracy.toFixed(1)} m
-    </div>
-  )}
-</div>
 
 
           <div className="text-sm font-semibold mb-2">

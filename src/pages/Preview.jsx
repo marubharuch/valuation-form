@@ -67,7 +67,7 @@ const [uniqId, setUniqId] = useState(
   if (currentPage.length) pages.push(currentPage);
 
   /* ------------------ SAVE TO FIRESTORE ------------------ */
- const saveDocuments = async () => {
+const saveDocuments = async () => {
   if (saving) return;
   setSaving(true);
 
@@ -75,69 +75,60 @@ const [uniqId, setUniqId] = useState(
     const caseRef = doc(db, "cases", caseId);
     const snap = await getDoc(caseRef);
 
-    const existingDocs = snap.data()?.documents || [];
-    const updatedDocs = [...existingDocs];
+    const existingPages =
+      snap.data()?.documents?.pages || [];
 
-    for (const img of state.images) {
+    const pageId = state.pageId || crypto.randomUUID();
 
-      // 1️⃣ RAW IMAGE → always upload & new doc
-      if (img.source === "raw") {
-        const imageUrl = await uploadToCloudinary(img.src, `documents/${caseId}`);
+    const uploadedImages = [];
 
-        updatedDocs.push({
-          id: crypto.randomUUID(),
-          imageUrl,
-          title: img.title || "",
-          printSize: img.printSize,
-          createdAt: new Date(),
-        });
-      }
+    for (const img of images) {
+      const imageUrl = await uploadToCloudinary(
+        img.src,
+        `documents/${caseId}/${pageId}`
+      );
 
-      // 2️⃣ FIRESTORE IMAGE
-      if (img.source === "firestore") {
-
-        // ask user only if modified
-        if (img.isModified) {
-          const replace = window.confirm(
-            "This document already exists.\n\nOK = Replace\nCancel = Save as new"
-          );
-
-          // upload only if replaced
-          const imageUrl = replace
-            ? await uploadToCloudinary(img.src, `documents/${caseId}`)
-            : img.imageUrl;
-
-          if (replace) {
-            // remove old
-            const index = updatedDocs.findIndex(d => d.id === img.docId);
-            if (index !== -1) updatedDocs.splice(index, 1);
-          }
-
-          updatedDocs.push({
-            id: replace ? img.docId : crypto.randomUUID(),
-            imageUrl,
-            title: img.title || "",
-            printSize: img.printSize,
-            createdAt: new Date(),
-          });
-        }
-      }
+      uploadedImages.push({
+        id: crypto.randomUUID(),
+        imageUrl,
+        title: img.title || "",
+        printSize: img.printSize,
+      });
     }
+
+    const pageData = {
+      pageId,
+      footerText,
+      images: uploadedImages,
+      updatedAt: new Date(),
+    };
+
+    const updatedPages = state.pageId
+      ? existingPages.map(p =>
+          p.pageId === state.pageId ? pageData : p
+        )
+      : [...existingPages, pageData];
 
     await setDoc(
       caseRef,
-      { documents: updatedDocs, updatedAt: new Date() },
+      {
+        documents: { pages: updatedPages },
+        updatedAt: new Date(),
+      },
       { merge: true }
     );
 
-    alert("Documents saved successfully ✅");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to save documents");
+    alert("Page saved successfully ✅");
+    navigate(-1);
+
+  } catch (e) {
+    console.error(e);
+    alert("Save failed");
   } finally {
     setSaving(false);
   }
 };
+
 
 const printOnly = () => {
   window.print();

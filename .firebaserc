@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "dss-val"
-  }
+  },
+  "targets": {
+    "dss-val": {
+      "hosting": {
+        "beta": [
+          "valuation-beta"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
