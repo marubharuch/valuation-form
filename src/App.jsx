@@ -8,6 +8,10 @@ import AddProperty from "./pages/AddProperty";
 import PreviewA4 from "./pages/PreviewA4";
 import Preview from "./pages/Preview";
 import Rawpics from "./pages/RowPics";
+import DataPageEditor from "./pages/DataPageEditor";
+import { valuationSummarySchema } from "./schemas/valuationSummary.schema"; 
+import DataPagePreview from "./components/documents/DataPagePreview";
+import DataPreview from "./pages/DataPreview";
 export default function App() {
   return (
     <>
@@ -27,6 +31,9 @@ export default function App() {
         <Route path="/case/:caseId/rawpics" element={<Rawpics />} />
         <Route path="/case/:caseId/preview" element={<PreviewA4 />} />
         <Route path="/docpreview/:caseId" element={<Preview />} />
+        <Route path="/case/:caseId/data"   element={<DataPageEditor schema={valuationSummarySchema} /> }
+        />  
+        <Route path="/case/:caseId/datapreview" element={<DataPreview schema={valuationSummarySchema} />} />
 
        
 

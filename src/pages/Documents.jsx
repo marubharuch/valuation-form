@@ -12,6 +12,7 @@ import PropertyDocumentsCard from "../components/documents/PropertyDocumentsCard
 import CropModal from "../components/CropModal";
 
 import { urlToBase64 } from "../utils/urlToBase64";
+import { valuationSummarySchema } from "../schemas/valuationSummary.schema";
 
 export default function Documents() {
   const { caseId } = useParams();
@@ -196,6 +197,17 @@ export default function Documents() {
           >
             + Create New Page
           </button>
+          <button
+  onClick={() =>
+    navigate(`/case/${caseId}/data`, {
+      state: { schemaId: "valuationSummary" },
+    })
+  }
+  className="border px-3 py-2 rounded"
+>
+  Valuation Summary
+</button>
+
         </div>
 
         {/* ===== RIGHT COLUMN (2 cols) ===== */}

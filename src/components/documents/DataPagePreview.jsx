@@ -2,7 +2,24 @@ const HEADER_HEIGHT_MM = 20;
 const FOOTER_HEIGHT_MM = 15;
 
 export default function DataPagePreview({ page, showHeader }) {
+   if (!page || !Array.isArray(page.sections)) {
+    return (
+      <div
+        style={{
+          width: "210mm",
+          height: "297mm",
+          padding: "10mm",
+          background: "#fff",
+          pageBreakAfter: "always",
+        }}
+      >
+        <div style={{ textAlign: "center", color: "red" }}>
+          Invalid data page
+        </div>
+      </div>
+    );}
   return (
+
     <div
       style={{
         width: "210mm",
