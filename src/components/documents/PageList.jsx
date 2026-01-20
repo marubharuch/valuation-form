@@ -19,19 +19,16 @@ export default function PageList({ pages = [], onOpenPage }) {
             className="flex gap-3 cursor-pointer rounded border p-3 hover:bg-gray-50"
           >
             {/* Thumbnail */}
-            <div className="h-16 w-16 flex-shrink-0 rounded border bg-gray-100 overflow-hidden">
-              {firstImg?.imageUrl ? (
-                <img
-                  src={firstImg.imageUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-xs text-gray-400">
-                  No image
-                </div>
-              )}
-            </div>
+            <div className="flex gap-1">
+  {page.images.slice(0, 3).map((img, i) => (
+    <img
+      key={i}
+      src={img.imageUrl}
+      className="h-10 w-10 object-cover rounded border"
+    />
+  ))}
+</div>
+
 
             {/* Text */}
             <div className="flex-1">

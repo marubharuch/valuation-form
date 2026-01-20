@@ -5,6 +5,7 @@ export default function NewPageEditor({
   setImages,
   onBack,
   onPreview,
+  onEditImage,
 }) {
   if (!images.length) {
     return (
@@ -26,11 +27,13 @@ export default function NewPageEditor({
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {images.map((img, index) => (
           <ImageCard
-            key={index}
-            img={img}
-            index={index}
-            setImages={setImages}
-          />
+  key={index}
+  img={img}
+  index={index}
+  setImages={setImages}
+  onEdit={onEditImage}
+/>
+
         ))}
       </div>
 

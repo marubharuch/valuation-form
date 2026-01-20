@@ -15,10 +15,13 @@ import { urlToBase64 } from "../utils/urlToBase64";
 import NewPageEditor from "../components/documents/NewPageEditor";
 //import  pasteFromClipboard  from "../utils/pasteFromClipboard"; 
 import PropertyDocumentsCard from "../components/documents/PropertyDocumentsCard";
-
+import CropModal from "../components/CropModal";
 export default function Documents() {
   const { caseId } = useParams();
   const navigate = useNavigate();
+const [cropSrc, setCropSrc] = useState(null);
+const [cropIndex, setCropIndex] = useState(null);
+
 
   /* ---------------- MODE ---------------- */
   const [mode, setMode] = useState("pages"); // pages | raw | new
@@ -52,6 +55,7 @@ async function openSavedPage(page) {
     alert("No images found in this page");
     return;
   }
+  
 
   const convertedImages = await Promise.all(
     page.images.map(async (img) => ({
@@ -148,6 +152,10 @@ async function openSavedPage(page) {
 }
 
 
+function handleEditImage(index) {
+  setCropIndex(index);
+  setCropSrc(images[index].src);
+}
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
@@ -218,6 +226,7 @@ async function openSavedPage(page) {
         },
       })
     }
+     onEditImage={handleEditImage}
   />
 )}
 
@@ -256,8 +265,30 @@ async function openSavedPage(page) {
         </>
       )}
 
+
+{cropSrc && (
+  <CropModal
+    src={cropSrc}
+    onClose={() => {
+      setCropSrc(null);
+      setCropIndex(null);
+    }}
+    onSave={(base64) => {
+      // 🔴 THIS IS THE KEY PART
+      setImages((prev) =>
+        prev.map((img, i) =>
+          i === cropIndex ? { ...img, src: base64 } : img
+        )
+      );
+
+      setCropSrc(null);
+      setCropIndex(null);
+    }}
+  />
+)}
+
       {/* -------- LOCATION INFO -------- */}
-      {propertyLocation && (
+      {/*propertyLocation && (
         <div className="mt-3 rounded border p-2 text-sm bg-gray-50">
           <div><b>Lat:</b> {propertyLocation.lat}</div>
           <div><b>Lng:</b> {propertyLocation.lng}</div>
@@ -268,7 +299,7 @@ async function openSavedPage(page) {
               : "—"}
           </div>
         </div>
-      )}
+      )*/}
     </div>
   );
 }

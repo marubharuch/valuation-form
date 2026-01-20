@@ -6,6 +6,7 @@ export default function CropModal({ src, onSave, onClose }) {
   const [zoom, setZoom] = useState(0.7);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [saving, setSaving] = useState(false);
+const [rotation, setRotation] = useState(0); // degrees
 
   const onCropComplete = useCallback((_, croppedPixels) => {
     setCroppedAreaPixels(croppedPixels);
@@ -20,32 +21,43 @@ export default function CropModal({ src, onSave, onClose }) {
     image.src = src;
 
     image.onload = () => {
-      const TARGET_W = 1200;
-      const TARGET_H = 900;
+  const TARGET_W = 1200;
+  const TARGET_H = 900;
 
-      const canvas = document.createElement("canvas");
-      canvas.width = TARGET_W;
-      canvas.height = TARGET_H;
-      const ctx = canvas.getContext("2d");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
 
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
+  canvas.width = TARGET_W;
+  canvas.height = TARGET_H;
 
-      ctx.drawImage(
-        image,
-        croppedAreaPixels.x * scaleX,
-        croppedAreaPixels.y * scaleY,
-        croppedAreaPixels.width * scaleX,
-        croppedAreaPixels.height * scaleY,
-        0,
-        0,
-        TARGET_W,
-        TARGET_H
-      );
+  ctx.save();
 
-      // pass cropped image to parent
-      onSave(canvas.toDataURL("image/jpeg", 0.8));
-    };
+  // move origin to center
+  ctx.translate(TARGET_W / 2, TARGET_H / 2);
+
+  // rotate
+  ctx.rotate((rotation * Math.PI) / 180);
+
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+
+  ctx.drawImage(
+    image,
+    croppedAreaPixels.x * scaleX,
+    croppedAreaPixels.y * scaleY,
+    croppedAreaPixels.width * scaleX,
+    croppedAreaPixels.height * scaleY,
+    -TARGET_W / 2,
+    -TARGET_H / 2,
+    TARGET_W,
+    TARGET_H
+  );
+
+  ctx.restore();
+
+  onSave(canvas.toDataURL("image/jpeg", 0.8));
+};
+
   };
 
   return (
@@ -68,6 +80,7 @@ export default function CropModal({ src, onSave, onClose }) {
           image={src}
           crop={crop}
           zoom={zoom}
+           rotation={rotation}  
           aspect={4 / 3}
           onCropChange={setCrop}
           onZoomChange={setZoom}
@@ -82,6 +95,23 @@ export default function CropModal({ src, onSave, onClose }) {
         <div className="text-xs text-gray-500 text-center">
           Drag image • Zoom to fit inside box
         </div>
+<div className="flex justify-center gap-3">
+  <button
+    onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
+    disabled={saving}
+    className="border rounded px-4 py-2 text-sm disabled:opacity-50"
+  >
+    ⟲ Rotate Left
+  </button>
+
+  <button
+    onClick={() => setRotation((r) => (r + 90) % 360)}
+    disabled={saving}
+    className="border rounded px-4 py-2 text-sm disabled:opacity-50"
+  >
+    ⟳ Rotate Right
+  </button>
+</div>
 
         <input
           type="range"

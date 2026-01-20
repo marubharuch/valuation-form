@@ -1,6 +1,6 @@
 import { PRINT_SIZES } from "../../constants/documentConstants";
 
-export default function ImageCard({ img, index, setImages }) {
+export default function ImageCard({ img, index, setImages,onEdit }) {
   function update(patch) {
     setImages((prev) =>
       prev.map((i, idx) =>
@@ -12,9 +12,11 @@ export default function ImageCard({ img, index, setImages }) {
   return (
     <div className="border p-2 rounded">
       <img
-        src={img.src}
-        className="h-32 w-full object-cover rounded"
-      />
+  src={img.src}
+  onClick={() => onEdit(index)}
+  className="h-32 w-full object-cover rounded cursor-pointer"
+/>
+
 
       <input
         value={img.title || ""}
@@ -47,6 +49,6 @@ export default function ImageCard({ img, index, setImages }) {
         />
         Include
       </label>
-    </div>
+    </div>  
   );
 }
