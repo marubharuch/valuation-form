@@ -21,6 +21,7 @@ const SIZE_SPAN = {
 };
 
 const FOOTER_HEIGHT_MM = 15; // reserved space for footer (mm)
+const HEADER_HEIGHT_MM = 20;
 
 export default function Preview() {
   const { state } = useLocation();
@@ -133,6 +134,11 @@ const saveDocuments = async () => {
 const printOnly = () => {
   window.print();
 };
+const valuer =
+  state?.valuer ||
+  state?.caseData?.valuer ||
+  "";
+const showHeader = valuer.toLowerCase() === "k";
 
 
 
@@ -175,18 +181,30 @@ const printOnly = () => {
     </button>
   </div>
 </div>
-<div className="mb-4 print:hidden">
-  <label className="text-sm font-medium">
-    Footer Text (will print on every page)
-  </label>
-  <textarea
-    className="w-full border rounded p-2 text-sm"
-    rows={2}
-    value={footerText}
-    onChange={(e) => setFooterText(e.target.value)}
-    placeholder="Example: Valuation report – confidential"
-  />
-</div>
+{showHeader && (
+  <div
+    className="print:block hidden"
+    style={{
+      textAlign: "center",
+      fontSize: "11px",
+      lineHeight: "14px",
+      fontWeight: "600",
+      height: `${HEADER_HEIGHT_MM}mm`,
+      marginBottom: "4mm",
+    }}
+  >
+    <div>
+      (NAME – KAUSHIK M. SHAH B.E.(CIVIL) A.M.I.E.
+      GOVT. APPROVED VALUER. REGI. NO CAT-I / 476)
+    </div>
+    <div style={{ marginTop: "2mm" }}>
+      (ADD – SIDDHGIRI, 13, ANANT SOCIETY,
+      OPP. DEVYANI SOC., RAMANNAGAR,
+      MANINAGAR, AHMEDABAD)
+    </div>
+  </div>
+)}
+
 
 
 
@@ -207,16 +225,44 @@ const printOnly = () => {
     pageBreakAfter: "always",
   }}
 >
+  {/* PRINT HEADER */}
+<div
+  className="print:block hidden"
+  style={{
+    textAlign: "center",
+    fontSize: "11px",
+    lineHeight: "14px",
+    fontWeight: "600",
+    height: `${HEADER_HEIGHT_MM}mm`,
+    marginBottom: "4mm",
+  }}
+>
+  <div>
+    (NAME – KAUSHIK M. SHAH B.E.(CIVIL) A.M.I.E.
+    GOVT. APPROVED VALUER. REGI. NO CAT-I / 476)
+  </div>
+  <div style={{ marginTop: "2mm" }}>
+    (ADD – SIDDHGIRI, 13, ANANT SOCIETY,
+    OPP. DEVYANI SOC., RAMANNAGAR,
+    MANINAGAR, AHMEDABAD)
+  </div>
+</div>
+
   <div
     style={{
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
       gridTemplateRows: "repeat(6, 1fr)",
       gap: "4mm",
-      height: `calc(297mm - 20mm - ${FOOTER_HEIGHT_MM}mm)`,
+      height: `calc(297mm - 20mm - ${
+  showHeader ? HEADER_HEIGHT_MM : 0
+}mm - ${FOOTER_HEIGHT_MM}mm)`
+
+
 
     }}
   >
+
     {page.map((img, i) => {
       const span = SIZE_SPAN[img.printSize];
 

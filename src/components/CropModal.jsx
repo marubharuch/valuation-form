@@ -1,12 +1,22 @@
 import Cropper from "react-easy-crop";
 import { useState, useCallback } from "react";
+const SIZE_SPAN = {
+  1: { col: 2, row: 6 },
+  2: { col: 2, row: 3 },
+  3: { col: 2, row: 2 },
+  4: { col: 1, row: 3 },
+  6: { col: 1, row: 2 },
+};
 
-export default function CropModal({ src, onSave, onClose }) {
+
+export default function CropModal({ src,printSize, onSave, onClose }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(0.7);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [saving, setSaving] = useState(false);
 const [rotation, setRotation] = useState(0); // degrees
+const span = SIZE_SPAN[printSize] || SIZE_SPAN[1];
+const aspect = span.col / span.row;
 
   const onCropComplete = useCallback((_, croppedPixels) => {
     setCroppedAreaPixels(croppedPixels);
@@ -81,7 +91,7 @@ const [rotation, setRotation] = useState(0); // degrees
           crop={crop}
           zoom={zoom}
            rotation={rotation}  
-          aspect={4 / 3}
+          aspect={aspect}
           onCropChange={setCrop}
           onZoomChange={setZoom}
           onCropComplete={onCropComplete}

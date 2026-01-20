@@ -11,6 +11,12 @@ export default function ImageCard({ img, index, setImages,onEdit }) {
 
   return (
     <div className="border p-2 rounded">
+      {img.previewed && (
+  <div className="absolute top-1 right-1 bg-green-600 text-white text-xs px-2 py-0.5 rounded">
+    ✓ Previewed
+  </div>
+)}
+
       <img
   src={img.src}
   onClick={() => onEdit(index)}
