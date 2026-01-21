@@ -259,23 +259,25 @@ export default function Documents() {
       </div>
 
       {/* ================= CROP MODAL ================= */}
-      {cropSrc && (
+  {cropSrc && (
   <CropModal
     src={cropSrc}
     initialSize={cropSize}
+    initialTitle={images[cropIndex]?.title || ""} 
     onClose={() => {
       setCropSrc(null);
       setCropIndex(null);
     }}
-    onSave={(base64, size) => {   // 👈 RECEIVE size here
+    onSave={(base64, size, title) => {   // 👈 receive title
       setImages((prev) =>
         prev.map((img, i) =>
           i === cropIndex
             ? {
                 ...img,
                 src: base64,
-                printSize: size,   // 👈 SAVE size in state
-                selected: true
+                printSize: size,
+                title: title,            // 👈 save title
+                selected: true,
               }
             : img
         )
@@ -285,6 +287,7 @@ export default function Documents() {
     }}
   />
 )}
+
 
     </div>
   );

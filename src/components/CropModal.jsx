@@ -9,6 +9,7 @@ const A4_RATIO = 210 / 297;
 
 export default function CropModal({
   src,
+  initialTitle = "",
   initialSize = 1,
   onSave,
   onClose,
@@ -18,6 +19,9 @@ export default function CropModal({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [saving, setSaving] = useState(false);
+
+const [title, setTitle] = useState(initialTitle);
+
 
   /**
    * ASPECT RATIO LOGIC:
@@ -44,6 +48,12 @@ export default function CropModal({
     setCrop({ x: 0, y: 0 });
     setZoom(1);
   }, [selectedSize]);
+  
+  useEffect(() => {
+  setSelectedSize(initialSize);
+  setTitle(initialTitle);
+}, [initialSize, initialTitle]);
+
 
   const onCropComplete = useCallback((_, croppedPixels) => {
     setCroppedAreaPixels(croppedPixels);
@@ -83,8 +93,12 @@ export default function CropModal({
         OUTPUT_WIDTH,
         OUTPUT_HEIGHT
       );
+onSave(
+  canvas.toDataURL("image/jpeg", 0.95),
+  selectedSize,
+  title
+);
 
-      onSave(canvas.toDataURL("image/jpeg", 0.95), selectedSize);
       setSaving(false);
     };
   };
@@ -112,6 +126,13 @@ export default function CropModal({
             {s} / PAGE
           </button>
         ))}
+        <input
+  value={title}
+  onChange={(e) => setTitle(e.target.value)}
+  placeholder="Image title"
+  className="w-full border px-2 py-1 text-sm rounded"
+/>
+
       </div>
 
       {/* CROPPER AREA */}
