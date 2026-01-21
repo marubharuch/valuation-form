@@ -260,24 +260,32 @@ export default function Documents() {
 
       {/* ================= CROP MODAL ================= */}
       {cropSrc && (
-        <CropModal
-          src={cropSrc}
-          printSize={cropSize}
-          onClose={() => {
-            setCropSrc(null);
-            setCropIndex(null);
-          }}
-          onSave={(base64) => {
-            setImages((prev) =>
-              prev.map((img, i) =>
-                i === cropIndex ? { ...img, src: base64 } : img
-              )
-            );
-            setCropSrc(null);
-            setCropIndex(null);
-          }}
-        />
-      )}
+  <CropModal
+    src={cropSrc}
+    initialSize={cropSize}
+    onClose={() => {
+      setCropSrc(null);
+      setCropIndex(null);
+    }}
+    onSave={(base64, size) => {   // 👈 RECEIVE size here
+      setImages((prev) =>
+        prev.map((img, i) =>
+          i === cropIndex
+            ? {
+                ...img,
+                src: base64,
+                printSize: size,   // 👈 SAVE size in state
+                selected: true
+              }
+            : img
+        )
+      );
+      setCropSrc(null);
+      setCropIndex(null);
+    }}
+  />
+)}
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { PRINT_SIZES } from "../../constants/documentConstants";
 
-export default function ImageCard({ img, index, setImages,onEdit }) {
+export default function ImageCard({ img, index, setImages, onEdit }) {
   function update(patch) {
     setImages((prev) =>
       prev.map((i, idx) =>
@@ -10,19 +10,18 @@ export default function ImageCard({ img, index, setImages,onEdit }) {
   }
 
   return (
-    <div className="border p-2 rounded">
+    <div className="border p-2 rounded relative">
       {img.previewed && (
-  <div className="absolute top-1 right-1 bg-green-600 text-white text-xs px-2 py-0.5 rounded">
-    ✓ Previewed
-  </div>
-)}
+        <div className="absolute top-1 right-1 bg-green-600 text-white text-xs px-2 py-0.5 rounded">
+          ✓ Previewed
+        </div>
+      )}
 
       <img
-  src={img.src}
-  onClick={() => onEdit(index)}
-  className="h-32 w-full object-cover rounded cursor-pointer"
-/>
-
+        src={img.src}
+        onClick={() => onEdit(index)}
+        className="h-32 w-full object-cover rounded cursor-pointer"
+      />
 
       <input
         value={img.title || ""}
@@ -31,18 +30,19 @@ export default function ImageCard({ img, index, setImages,onEdit }) {
         className="mt-1 w-full border px-1 text-xs"
       />
 
+      {/* PRINT SIZE (re-crop trigger) */}
       <div className="mt-2 flex flex-wrap gap-1">
         {PRINT_SIZES.map((s) => (
           <button
             key={s}
-            onClick={() => update({ printSize: s, selected: true })}
+            onClick={() => onEdit(index, s)}
             className={`px-2 py-1 text-xs border rounded ${
               img.printSize === s
                 ? "bg-blue-600 text-white"
                 : "bg-gray-100"
             }`}
           >
-            {s}
+            {s} / page
           </button>
         ))}
       </div>
@@ -55,6 +55,6 @@ export default function ImageCard({ img, index, setImages,onEdit }) {
         />
         Include
       </label>
-    </div>  
+    </div>
   );
 }
