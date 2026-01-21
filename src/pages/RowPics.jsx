@@ -4,8 +4,9 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import CropModal from "../components/CropModal";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary";
-import { useNavigate } from "react-router-dom";
-import CaseNavbar from "../components/CaseNavbar";  
+import { urlToBase64 } from "../utils/urlToBase64";
+import CaseNavbar from "../components/CaseNavbar";
+
 /* ---------------- META FIELD CONFIG ---------------- */
 const ROWPIC_FIELDS = [
   { key: "name", label: "Name", icon: "👤", type: "text" },
@@ -25,6 +26,7 @@ const ROWPIC_FIELDS = [
 export default function RowPics() {
   const { caseId } = useParams();
   const fileRef = useRef();
+  const multiRef = useRef();
 
   /* ---------------- STATE ---------------- */
   const [rowPics, setRowPics] = useState([]);
@@ -37,18 +39,20 @@ export default function RowPics() {
   const [viewerPic, setViewerPic] = useState(null);
   const [activeField, setActiveField] = useState(null);
 
+  const [pendingImages, setPendingImages] = useState([]);
+  const [savingBatch, setSavingBatch] = useState(false);
+
   /* ---------------- CLOUDINARY FOLDER ---------------- */
   const now = new Date();
   const folder = `rawpics/${now.getFullYear()}-${String(
     now.getMonth() + 1
   ).padStart(2, "0")}`;
 
-  /* ---------------- LOAD FROM FIRESTORE ---------------- */
+  /* ---------------- LOAD CASE ---------------- */
   useEffect(() => {
     async function loadCase() {
       const snap = await getDoc(doc(db, "cases", caseId));
       const data = snap.data();
-
       setRowPics(data?.rowPics || []);
       setMetaForm(data?.rowPicMeta || {});
       setLoading(false);
@@ -60,12 +64,11 @@ export default function RowPics() {
     return <div className="p-6 text-center">Loading Row Pics…</div>;
   }
 
-  /* ---------------- LOCAL META UPDATE ---------------- */
+  /* ---------------- META ---------------- */
   const updateValue = (key, value) => {
     setMetaForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  /* ---------------- SAVE META (EXPLICIT) ---------------- */
   const saveMeta = async () => {
     await updateDoc(doc(db, "cases", caseId), {
       rowPicMeta: metaForm,
@@ -73,7 +76,7 @@ export default function RowPics() {
     alert("Details saved");
   };
 
-  /* ---------------- CAMERA / FILE PICKER ---------------- */
+  /* ---------------- SINGLE CAPTURE ---------------- */
   const onCapture = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -81,25 +84,16 @@ export default function RowPics() {
     const reader = new FileReader();
     reader.onload = () => setCropSrc(reader.result);
     reader.readAsDataURL(file);
-
     e.target.value = null;
   };
 
-  /* ---------------- SAVE IMAGE ---------------- */
   const onCropSave = async (croppedBase64) => {
     setUploading(true);
     try {
       const imageUrl = await uploadToCloudinary(croppedBase64, folder);
+      const updated = [...rowPics, { id: crypto.randomUUID(), imageUrl }];
 
-      const updated = [
-        ...rowPics,
-        { id: crypto.randomUUID(), imageUrl },
-      ];
-
-      await updateDoc(doc(db, "cases", caseId), {
-        rowPics: updated,
-      });
-
+      await updateDoc(doc(db, "cases", caseId), { rowPics: updated });
       setRowPics(updated);
       setCropSrc(null);
     } catch {
@@ -109,17 +103,67 @@ export default function RowPics() {
     }
   };
 
+  /* ---------------- MULTI CAPTURE ---------------- */
+  const onMultiCapture = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const mapped = files.map((file) => ({
+      id: crypto.randomUUID(),
+      preview: URL.createObjectURL(file),
+    }));
+
+    setPendingImages((prev) => [...prev, ...mapped]);
+    e.target.value = null;
+  };
+
+  /* ---------------- SAVE MULTIPLE ---------------- */
+  const saveMultipleImages = async () => {
+    if (!pendingImages.length) return;
+    setSavingBatch(true);
+
+    try {
+      const uploaded = [];
+
+      for (const img of pendingImages) {
+        const base64 = await urlToBase64(img.preview);
+        const imageUrl = await uploadToCloudinary(base64, folder);
+
+        uploaded.push({
+          id: crypto.randomUUID(),
+          imageUrl,
+        });
+
+        URL.revokeObjectURL(img.preview);
+      }
+
+      const updatedRowPics = [...rowPics, ...uploaded];
+      await updateDoc(doc(db, "cases", caseId), {
+        rowPics: updatedRowPics,
+      });
+
+      setRowPics(updatedRowPics);
+      setPendingImages([]);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to upload images");
+    } finally {
+      setSavingBatch(false);
+    }
+  };
+
   /* ---------------- UI ---------------- */
   return (
     <div className="p-4 max-w-md mx-auto">
-<CaseNavbar/>
-      {/* ===== META INPUTS (TOP) ===== */}
+      <CaseNavbar />
+
+      {/* META FORM */}
       <div className="mb-4 p-3 border rounded-lg bg-gray-50">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {ROWPIC_FIELDS.map((f) => (
             <div key={f.key}>
-              <label className="text-xs text-gray-600 mb-1 flex gap-1">
-                <span>{f.icon}</span> {f.label}
+              <label className="text-xs text-gray-600">
+                {f.icon} {f.label}
               </label>
 
               {f.type === "textarea" ? (
@@ -127,23 +171,17 @@ export default function RowPics() {
                   rows={2}
                   className="w-full border rounded p-2 text-sm"
                   value={metaForm[f.key] || ""}
-                  onChange={(e) =>
-                    updateValue(f.key, e.target.value)
-                  }
+                  onChange={(e) => updateValue(f.key, e.target.value)}
                 />
               ) : f.type === "select" ? (
                 <select
                   className="w-full border rounded p-2 text-sm"
                   value={metaForm[f.key] || ""}
-                  onChange={(e) =>
-                    updateValue(f.key, e.target.value)
-                  }
+                  onChange={(e) => updateValue(f.key, e.target.value)}
                 >
                   <option value="">Select</option>
                   {f.options.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
+                    <option key={o}>{o}</option>
                   ))}
                 </select>
               ) : (
@@ -151,9 +189,7 @@ export default function RowPics() {
                   type={f.type}
                   className="w-full border rounded p-2 text-sm"
                   value={metaForm[f.key] || ""}
-                  onChange={(e) =>
-                    updateValue(f.key, e.target.value)
-                  }
+                  onChange={(e) => updateValue(f.key, e.target.value)}
                 />
               )}
             </div>
@@ -168,39 +204,67 @@ export default function RowPics() {
         </button>
       </div>
 
-      {/* ===== HEADER ===== */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold">Row Pics</h3>
+      {/* HEADER */}
+      <div className="flex justify-between mb-3">
+        <button
+          onClick={() => multiRef.current.click()}
+          className="px-4 h-10 bg-green-600 text-white rounded"
+        >
+          Add Images
+        </button>
         <button
           onClick={() => fileRef.current.click()}
-          className="w-10 h-10 rounded-full bg-blue-600 text-white text-xl"
+          className="w-10 h-10 bg-blue-600 text-white rounded-full"
         >
           +
         </button>
       </div>
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        onChange={onCapture}
-      />
+      <input ref={fileRef} type="file" hidden accept="image/*" capture="environment" onChange={onCapture} />
+      <input ref={multiRef} type="file" hidden accept="image/*" multiple onChange={onMultiCapture} />
 
-      {/* ===== IMAGES ===== */}
+      {/* EXISTING IMAGES */}
       <div className="grid grid-cols-3 gap-2">
         {rowPics.map((pic) => (
           <img
             key={pic.id}
             src={pic.imageUrl}
+            className="h-24 w-full object-cover rounded"
             onClick={() => setViewerPic(pic)}
-            className="h-24 w-full object-cover rounded cursor-pointer"
           />
         ))}
       </div>
 
-      {/* ===== CROP MODAL ===== */}
+      {/* PENDING IMAGES */}
+      {pendingImages.length > 0 && (
+        <>
+          <h4 className="mt-4 text-sm font-semibold">Pending Images</h4>
+          <div className="grid grid-cols-3 gap-2">
+            {pendingImages.map((img) => (
+              <div key={img.id} className="relative">
+                <img src={img.preview} className="h-24 w-full object-cover rounded" />
+                <button
+                  onClick={() =>
+                    setPendingImages((p) => p.filter((x) => x.id !== img.id))
+                  }
+                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={saveMultipleImages}
+            disabled={savingBatch}
+            className="mt-3 w-full bg-blue-600 text-white py-2 rounded"
+          >
+            {savingBatch ? "Saving..." : "Save Images"}
+          </button>
+        </>
+      )}
+
       {cropSrc && (
         <CropModal
           src={cropSrc}
@@ -208,99 +272,6 @@ export default function RowPics() {
           onSave={onCropSave}
           onClose={() => setCropSrc(null)}
         />
-      )}
-
-      {/* ===== IMAGE VIEWER (DATA ENTRY FROM IMAGE) ===== */}
-      {viewerPic && (
-        <div className="fixed inset-0 bg-black z-50">
-          <img
-            src={viewerPic.imageUrl}
-            className="w-full h-full object-contain"
-          />
-
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 bg-black/60 px-4 py-2 rounded-full">
-            {ROWPIC_FIELDS.map((f) => {
-              const hasValue = !!metaForm[f.key];
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setActiveField(f)}
-                  className="relative text-xl text-white"
-                >
-                  {f.icon}
-                  {hasValue && (
-                    <span className="absolute -top-1 -right-1 bg-green-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                      ✓
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => setViewerPic(null)}
-              className="text-white text-xl"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ===== IMAGE-BASED INPUT ===== */}
-      {activeField && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white p-4 rounded-t-xl z-50">
-          <div className="font-semibold mb-2">
-            {activeField.icon} {activeField.label}
-          </div>
-
-          {activeField.type === "textarea" ? (
-            <textarea
-              rows={3}
-              className="w-full border rounded p-2"
-              value={metaForm[activeField.key] || ""}
-              onChange={(e) =>
-                updateValue(activeField.key, e.target.value)
-              }
-            />
-          ) : activeField.type === "select" ? (
-            <select
-              className="w-full border rounded p-2"
-              value={metaForm[activeField.key] || ""}
-              onChange={(e) =>
-                updateValue(activeField.key, e.target.value)
-              }
-            >
-              <option value="">Select</option>
-              {activeField.options.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              type={activeField.type}
-              className="w-full border rounded p-2"
-              value={metaForm[activeField.key] || ""}
-              onChange={(e) =>
-                updateValue(activeField.key, e.target.value)
-              }
-            />
-          )}
-
-          <div className="flex gap-3 mt-3">
-            <button
-              onClick={() => setActiveField(null)}
-              className="flex-1 border rounded py-2"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {uploading && (
-        <div className="text-sm text-center mt-3">Uploading…</div>
       )}
     </div>
   );
